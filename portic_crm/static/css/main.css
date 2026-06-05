@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f8; color: #1a1a1a; }
+.container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.main-nav { display: flex; align-items: center; gap: 1rem; background: #1e3a5f; color: #fff; padding: 0.75rem 1.5rem; }
+.main-nav a { color: #fff; text-decoration: none; }
+.main-nav ul { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; flex-wrap: wrap; }
+.main-nav .brand { font-weight: 700; margin-right: auto; }
+.messages { list-style: none; padding: 0; }
+.messages li { padding: 0.5rem 1rem; margin-bottom: 0.5rem; border-radius: 4px; }
+.messages .success { background: #d4edda; }
+.messages .error { background: #f8d7da; }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th, td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #e0e0e0; text-align: left; }
+.card { background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.login-box { max-width: 360px; margin: 4rem auto; background: #fff; padding: 2rem; border-radius: 8px; }
+.btn { display: inline-block; padding: 0.4rem 0.8rem; background: #1e3a5f; color: #fff; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; }
+.grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }

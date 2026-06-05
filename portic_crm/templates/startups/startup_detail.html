@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ object.nome }}{% endblock %}
+{% block content %}
+<h1>{{ object.nome }}</h1>
+<p>Edição: {{ object.edicao }} · Estado: {{ object.get_estado_residencia_display }}</p>
+{% endblock %}

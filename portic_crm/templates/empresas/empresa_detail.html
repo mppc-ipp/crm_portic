@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ empresa.nome }}{% endblock %}
+{% block content %}
+<h1>{{ empresa.nome }}</h1>
+<p><strong>NIF:</strong> {{ empresa.nif }} · <strong>Tipo:</strong> {{ empresa.get_tipo_display }}</p>
+<p><a href="{% url 'empresas:update' empresa.pk %}">Editar</a></p>
+<h2>Contactos</h2>
+<p><a class="btn" href="{% url 'empresas:contacto_create' empresa.pk %}">Adicionar contacto</a></p>
+<ul>
+  {% for c in empresa.contactos.all %}
+  <li>{{ c.nome }} — {{ c.cargo }} — {{ c.email }}
+    <form method="post" action="{% url 'empresas:contacto_delete' c.pk %}" style="display:inline">{% csrf_token %}<button type="submit">Remover</button></form>
+  </li>
+  {% empty %}
+  <li>Sem contactos.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,5 @@
+<h3>{{ objetivo.titulo }}</h3>
+<p><strong>Responsável:</strong> {{ objetivo.responsavel|default:"—" }}</p>
+<p><strong>Estado:</strong> {{ objetivo.get_estado_display }}</p>
+<p><strong>Data limite:</strong> {{ objetivo.data_limite|default:"—" }}</p>
+<div>{{ objetivo.descricao|linebreaks }}</div>

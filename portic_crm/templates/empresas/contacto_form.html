@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Novo contacto{% endblock %}
+{% block content %}
+<h1>Contacto — {{ empresa.nome }}</h1>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit" class="btn">Guardar</button></form>
+{% endblock %}

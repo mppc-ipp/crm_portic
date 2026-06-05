@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ object.nome }}{% endblock %}
+{% block content %}
+<h1>{{ object.nome }}</h1>
+<p>{{ object.resumo }}</p>
+{% for secao in secoes %}
+<div class="card">
+  <h2>{{ secao.nome }}</h2>
+  <ul>
+    {% for obj in secao.objetivos.all %}
+    <li>
+      <a href="{% url 'projetos:objetivo_detail' obj.pk %}"
+         hx-get="{% url 'projetos:objetivo_detail' obj.pk %}"
+         hx-target="#objetivo-panel"
+         hx-swap="innerHTML">{{ obj.titulo }}</a>
+      — {{ obj.data_limite|default:"—" }} — {{ obj.get_estado_display }}
+    </li>
+    {% empty %}<li>Sem objetivos.</li>{% endfor %}
+  </ul>
+</div>
+{% endfor %}
+<div id="objetivo-panel" class="card"><em>Clique num objetivo para ver a descrição.</em></div>
+{% endblock %}

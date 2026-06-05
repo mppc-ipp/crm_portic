@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Formulários{% endblock %}
+{% block content %}
+<h1>Formulários de candidatura</h1>
+<ul>
+  {% for f in formularios %}
+  <li>{{ f.titulo }} ({{ f.edicao.ano }}) —
+    <a href="{% url 'startups:candidatura_publica' f.token %}">Link público</a>
+    {% if not f.ativo %}(inativo){% endif %}
+  </li>
+  {% empty %}
+  <li>Crie formulários no <a href="{% url 'admin:index' %}">admin Django</a>.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Viaturas{% endblock %}
+{% block content %}
+<h1>Viaturas</h1>
+<ul>{% for v in viaturas %}<li>{{ v.nome }} — {{ v.matricula }}</li>{% empty %}<li>Nenhuma viatura.</li>{% endfor %}</ul>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ object.nome_startup }}{% endblock %}
+{% block content %}
+<h1>{{ object.nome_startup }}</h1>
+<p>Estado: {{ object.get_estado_display }} · {{ object.email_contacto }}</p>
+<p><a href="{% url 'startups:candidatura_estado' object.pk %}">Alterar estado</a></p>
+<h2>Respostas</h2>
+<ul>
+  {% for r in object.respostas.all %}
+  <li><strong>{{ r.campo.nome }}:</strong> {{ r.valor }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

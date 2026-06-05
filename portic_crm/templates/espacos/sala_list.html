@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Salas{% endblock %}
+{% block content %}
+<h1>Salas</h1>
+<ul>{% for s in salas %}<li>{{ s.nome }} ({{ s.unidade }}) — cap. {{ s.capacidade }}</li>{% empty %}<li>Nenhuma sala.</li>{% endfor %}</ul>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Minhas reservas{% endblock %}
+{% block content %}
+<h1>Minhas reservas</h1>
+<ul>
+  {% for p in pedidos %}
+  <li>{{ p.titulo }} — {{ p.get_modulo_display }} — {{ p.get_status_display }}</li>
+  {% empty %}<li>Sem pedidos.</li>{% endfor %}
+</ul>
+{% endblock %}

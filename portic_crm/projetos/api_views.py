@@ -1,0 +1,218 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count, Prefetch, Q
+from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from portic_crm.core.permissions import is_admin_geral
+from portic_crm.projetos.models import Objetivo, Projeto, Secao
+from portic_crm.projetos.serializers import (
+    ObjetivoListSerializer,
+    ObjetivoWriteSerializer,
+    ProjetoSerializer,
+    ProjetoWriteSerializer,
+    SecaoSerializer,
+    SecaoWriteSerializer,
+)
+from portic_crm.projetos.services import (
+    preparar_projeto_para_leitura,
+    registar_atividade,
+    sincronizar_membros,
+)
+
+class ProjetoPermissionMixin:
+    def get_permissions(self):
+        return [IsAuthenticated()]
+
+    def check_projeto_perm(self, request):
+        return is_admin_geral(request.user) or request.user.has_perm("projetos.view_projeto")
+
+
+class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
+    queryset = Projeto.objects.all()
+    serializer_class = ProjetoSerializer
+
+    def get_queryset(self):
+        if not self.check_projeto_perm(self.request):
+            return Projeto.objects.none()
+        objetivos_qs = (
+            Objetivo.objects.select_related("responsavel")
+            .annotate(
+                _subtarefas_total=Count("subtarefas", distinct=True),
+                _subtarefas_concluidas=Count("subtarefas", filter=Q(subtarefas__concluida=True), distinct=True),
+                _comentarios_total=Count("comentarios", distinct=True),
+            )
+            .order_by("ordem", "id")
+        )
+        return Projeto.objects.select_related("responsavel").prefetch_related(
+            "atividades",
+            "campos_personalizados",
+            "membros__utilizador",
+            Prefetch("secoes", queryset=Secao.objects.prefetch_related(
+                Prefetch("objetivos", queryset=objetivos_qs)
+            ).order_by("ordem")),
+        )
+
+    def _projeto_completo(self, pk: int) -> Projeto:
+        return self.get_queryset().get(pk=pk)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        for projeto in queryset:
+            preparar_projeto_para_leitura(projeto)
+        serializer = ProjetoSerializer(queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        projeto = self.get_object()
+        preparar_projeto_para_leitura(projeto)
+        serializer = ProjetoSerializer(projeto, context=self.get_serializer_context())
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        write = self.get_serializer(data=request.data)
+        write.is_valid(raise_exception=True)
+        self.perform_create(write)
+        projeto = self._projeto_completo(write.instance.pk)
+        preparar_projeto_para_leitura(projeto)
+        serializer = ProjetoSerializer(projeto, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        write = self.get_serializer(instance, data=request.data, partial=partial)
+        write.is_valid(raise_exception=True)
+        self.perform_update(write)
+        projeto = self._projeto_completo(write.instance.pk)
+        preparar_projeto_para_leitura(projeto)
+        serializer = ProjetoSerializer(projeto, context=self.get_serializer_context())
+        return Response(serializer.data)
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return ProjetoWriteSerializer
+        return ProjetoSerializer
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+
+    def _sincronizar_membros_seguro(self, projeto, emails):
+        try:
+            sincronizar_membros(projeto, emails)
+        except DjangoValidationError as exc:
+            raise ValidationError({"membros_emails": exc.messages})
+
+    def perform_create(self, serializer):
+        projeto = serializer.save(responsavel=self.request.user)
+        membros_emails = self.request.data.get("membros_emails")
+        if isinstance(membros_emails, list):
+            self._sincronizar_membros_seguro(projeto, membros_emails)
+        template = self.request.data.get("template_secoes", "vazio")
+        secoes_nomes = self.request.data.get("secoes_nomes")
+        if isinstance(secoes_nomes, list) and secoes_nomes:
+            for i, nome in enumerate(secoes_nomes):
+                nome_limpo = str(nome).strip()
+                if nome_limpo:
+                    Secao.objects.create(projeto=projeto, nome=nome_limpo, ordem=i)
+        elif template == "kanban":
+            for i, nome in enumerate(["A fazer", "Em curso", "Concluído"]):
+                Secao.objects.create(projeto=projeto, nome=nome, ordem=i)
+        registar_atividade(projeto, self.request.user, "PROJETO_CRIADO", f"Criou o projeto «{projeto.nome}»")
+
+    def perform_update(self, serializer):
+        projeto = serializer.save()
+        if "membros_emails" in self.request.data:
+            membros_emails = self.request.data.get("membros_emails", [])
+            if isinstance(membros_emails, list):
+                self._sincronizar_membros_seguro(projeto, membros_emails)
+        registar_atividade(projeto, self.request.user, "PROJETO_ATUALIZADO", f"Atualizou o projeto «{projeto.nome}»")
+
+
+class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
+    queryset = Secao.objects.prefetch_related("objetivos").all()
+    serializer_class = SecaoSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return SecaoWriteSerializer
+        return SecaoSerializer
+
+    def perform_create(self, serializer):
+        projeto = serializer.validated_data["projeto"]
+        nome = serializer.validated_data["nome"].strip()
+        if Secao.objects.filter(projeto=projeto, nome__iexact=nome).exists():
+            raise ValidationError({"nome": "Já existe uma secção com este nome neste projeto."})
+        secao = serializer.save(nome=nome)
+        registar_atividade(
+            projeto,
+            self.request.user,
+            "SECAO_CRIADA",
+            f"Criou a secção «{secao.nome}»",
+        )
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        nome = serializer.validated_data.get("nome", instance.nome).strip()
+        projeto = instance.projeto
+        if (
+            Secao.objects.filter(projeto=projeto, nome__iexact=nome)
+            .exclude(pk=instance.pk)
+            .exists()
+        ):
+            raise ValidationError({"nome": "Já existe uma secção com este nome neste projeto."})
+        secao = serializer.save(nome=nome)
+        registar_atividade(projeto, self.request.user, "SECAO_ATUALIZADA", f"Atualizou a secção «{secao.nome}»")
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.objetivos.exists():
+            return Response(
+                {
+                    "error": "Não é possível apagar uma secção com tarefas. Mova ou elimine as tarefas primeiro."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        projeto = instance.projeto
+        nome = instance.nome
+        instance.delete()
+        registar_atividade(projeto, request.user, "SECAO_ELIMINADA", f"Eliminou a secção «{nome}»")
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
+    queryset = Objetivo.objects.select_related("responsavel", "secao__projeto").all()
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return ObjetivoWriteSerializer
+        return ObjetivoListSerializer
+
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        registar_atividade(
+            obj.projeto,
+            self.request.user,
+            "TAREFA_CRIADA",
+            f"Criou a tarefa «{obj.titulo}»",
+            objetivo=obj,
+        )
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        registar_atividade(
+            obj.projeto,
+            self.request.user,
+            "TAREFA_ATUALIZADA",
+            f"Atualizou «{obj.titulo}»",
+            objetivo=obj,
+        )
+
+    def perform_destroy(self, instance):
+        projeto = instance.projeto
+        titulo = instance.titulo
+        instance.delete()
+        registar_atividade(projeto, self.request.user, "TAREFA_ELIMINADA", f"Eliminou «{titulo}»")

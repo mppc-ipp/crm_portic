@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Nova reserva{% endblock %}
+{% block content %}
+<h1>Nova reserva</h1>
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn">Submeter pedido</button>
+</form>
+<p><small>As ocorrências (horários) são configuradas pelo administrador após submissão.</small></p>
+{% endblock %}

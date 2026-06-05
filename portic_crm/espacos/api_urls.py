@@ -1,0 +1,38 @@
+from django.urls import path
+
+from portic_crm.espacos import api_views as v
+
+urlpatterns = [
+    path("config/modulos", v.ConfigModulosAPIView.as_view()),
+    path("salas", v.SalaListAPIView.as_view()),
+    path("salas/<int:pk>", v.SalaDetailAPIView.as_view()),
+    path("calendario", v.CalendarioAPIView.as_view()),
+    path("reservas", v.ReservaCreateAPIView.as_view()),
+    path("reservas/aprovar", v.ReservaTokenAPIView.as_view(), {"acao": "aprovar"}),
+    path("reservas/rejeitar", v.ReservaTokenAPIView.as_view(), {"acao": "rejeitar"}),
+    path("reservas/<int:pk>", v.ReservaDetailAPIView.as_view()),
+    path("reservas/<int:pk>/cancelar", v.ReservaCancelarAPIView.as_view()),
+    path("minhas-reservas", v.MinhasReservasAPIView.as_view()),
+    path("admin/unidades", v.AdminUnidadesAPIView.as_view()),
+    path("admin/salas", v.AdminSalasListAPIView.as_view()),
+    path("admin/salas/<int:pk>", v.AdminSalaDetailAPIView.as_view()),
+    path("admin/localizacoes", v.AdminLocalizacoesAPIView.as_view()),
+    path("admin/localizacoes/<int:pk>", v.AdminLocalizacaoDetailAPIView.as_view()),
+    path("admin/reservas", v.AdminReservasListAPIView.as_view()),
+    path("admin/reservas/<int:pk>/aprovar", v.AdminReservaAprovarAPIView.as_view()),
+    path("admin/reservas/<int:pk>/rejeitar", v.AdminReservaRejeitarAPIView.as_view()),
+    path("admin/historico", v.AdminHistoricoAPIView.as_view()),
+    path("admin/auditoria", v.AdminAuditoriaAPIView.as_view()),
+    path("admin/estatisticas", v.AdminEstatisticasAPIView.as_view()),
+    path("viaturas/<int:pk>", v.ViaturaDetailAPIView.as_view()),
+    path("viaturas", v.ViaturaListAPIView.as_view()),
+    path("viaturas/calendario", v.CalendarioAPIView.as_view()),
+    path("viaturas/reservas", v.ReservaCreateAPIView.as_view()),
+    path("viaturas/reservas/aprovar", v.ReservaTokenAPIView.as_view(), {"acao": "aprovar"}),
+    path("viaturas/reservas/rejeitar", v.ReservaTokenAPIView.as_view(), {"acao": "rejeitar"}),
+    path("viaturas/minhas-reservas", v.MinhasReservasAPIView.as_view()),
+    path("admin/reservas-viatura", v.AdminReservasListAPIView.as_view()),
+    path("admin/reservas-viatura/<int:pk>/aprovar", v.AdminReservaAprovarAPIView.as_view()),
+    path("admin/reservas-viatura/<int:pk>/rejeitar", v.AdminReservaRejeitarAPIView.as_view()),
+    path("admin/estatisticas-viatura", v.AdminEstatisticasAPIView.as_view()),
+]

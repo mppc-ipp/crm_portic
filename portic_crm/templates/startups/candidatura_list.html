@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Candidaturas{% endblock %}
+{% block content %}
+<h1>Candidaturas</h1>
+<ul>
+  {% for c in candidaturas %}
+  <li><a href="{% url 'startups:candidatura_detail' c.pk %}">{{ c.nome_startup }}</a> — {{ c.get_estado_display }} — {{ c.formulario.edicao.ano }}</li>
+  {% empty %}
+  <li>Sem candidaturas.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

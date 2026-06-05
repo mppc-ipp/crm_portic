@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Estado candidatura{% endblock %}
+{% block content %}
+<h1>Alterar estado — {{ object.nome_startup }}</h1>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn">Guardar</button></form>
+{% endblock %}

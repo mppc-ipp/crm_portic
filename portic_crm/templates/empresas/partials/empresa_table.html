@@ -1,0 +1,18 @@
+<table>
+  <thead>
+    <tr><th>Nome</th><th>NIF</th><th>Tipo</th><th>Setor</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for empresa in empresas %}
+    <tr>
+      <td>{{ empresa.nome }}</td>
+      <td>{{ empresa.nif }}</td>
+      <td>{{ empresa.get_tipo_display }}</td>
+      <td>{{ empresa.setor }}</td>
+      <td><a href="{% url 'empresas:detail' empresa.pk %}">Ver</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">Nenhuma empresa encontrada.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

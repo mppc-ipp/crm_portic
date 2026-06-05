@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="grid-stats">
+  <div class="card"><strong>{{ candidaturas_em_curso }}</strong><br>Candidaturas em curso</div>
+</div>
+<h2>Startups por ano</h2>
+<ul>{% for row in startups_por_ano %}<li>{{ row.edicao__nome }} ({{ row.edicao__ano }}): {{ row.total }}</li>{% empty %}<li>—</li>{% endfor %}</ul>
+<h2>Contratos a expirar (90 dias)</h2>
+<ul>{% for c in contratos_a_expirar %}<li>{{ c.startup.nome }} — {{ c.data_fim }}</li>{% empty %}<li>Nenhum.</li>{% endfor %}</ul>
+<h2>Próximos eventos</h2>
+<ul>{% for e in proximos_eventos %}<li>{{ e.titulo }} — {{ e.data_inicio }}</li>{% empty %}<li>Nenhum.</li>{% endfor %}</ul>
+<p><a href="{% url 'dashboard:evento_list' %}">Gerir eventos</a></p>
+{% endblock %}

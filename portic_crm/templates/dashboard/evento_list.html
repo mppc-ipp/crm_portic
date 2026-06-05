@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Eventos{% endblock %}
+{% block content %}
+<h1>Eventos</h1>
+<ul>{% for e in eventos %}<li>{{ e.titulo }} — {{ e.get_tipo_display }} — {{ e.data_inicio }}</li>{% empty %}<li>Nenhum evento.</li>{% endfor %}</ul>
+{% endblock %}

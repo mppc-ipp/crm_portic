@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Espaços{% endblock %}
+{% block content %}
+<h1>Reserva de espaços</h1>
+<div class="grid-stats">
+  {% if config.modulo_salas_ativo %}
+  <div class="card"><strong>{{ salas_count }}</strong> salas<a href="{% url 'espacos:sala_list' %}"><br>Ver salas</a></div>
+  {% endif %}
+  {% if config.modulo_viaturas_ativo %}
+  <div class="card"><strong>{{ viaturas_count }}</strong> viaturas<a href="{% url 'espacos:viatura_list' %}"><br>Ver viaturas</a></div>
+  {% endif %}
+</div>
+<p><a class="btn" href="{% url 'espacos:pedido_create' %}">Nova reserva</a>
+   <a href="{% url 'espacos:minhas_reservas' %}">Minhas reservas</a></p>
+{% endblock %}

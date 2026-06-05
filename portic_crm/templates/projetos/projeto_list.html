@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Projetos{% endblock %}
+{% block content %}
+<h1>Projetos</h1>
+<p><a class="btn" href="{% url 'projetos:create' %}">Novo projeto</a></p>
+<ul>
+  {% for p in projetos %}
+  <li><a href="{% url 'projetos:detail' p.pk %}">{{ p.nome }}</a> — {{ p.get_estado_display }}</li>
+  {% empty %}<li>Nenhum projeto.</li>{% endfor %}
+</ul>
+{% endblock %}

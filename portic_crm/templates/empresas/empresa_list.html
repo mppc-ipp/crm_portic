@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Empresas{% endblock %}
+{% block content %}
+<h1>Empresas</h1>
+<p><a class="btn" href="{% url 'empresas:create' %}">Nova empresa</a></p>
+<form hx-get="{% url 'empresas:list' %}" hx-target="#empresa-table" hx-trigger="keyup changed delay:300ms from:#search-input">
+  <input id="search-input" type="search" name="q" value="{{ request.GET.q }}" placeholder="Pesquisar nome, NIF, setor…">
+  <select name="tipo" hx-get="{% url 'empresas:list' %}" hx-target="#empresa-table" hx-include="#search-input">
+    <option value="">Todos os tipos</option>
+    {% for value, label in tipo_choices %}
+    <option value="{{ value }}" {% if request.GET.tipo == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+<div id="empresa-table">
+  {% include "empresas/partials/empresa_table.html" %}
+</div>
+{% endblock %}

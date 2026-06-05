@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Startups{% endblock %}
+{% block content %}
+<h1>Startups</h1>
+<p><a class="btn" href="{% url 'startups:create' %}">Nova startup</a>
+   <a href="{% url 'startups:candidatura_list' %}">Candidaturas</a>
+   <a href="{% url 'startups:formulario_list' %}">Formulários</a></p>
+<form method="get">
+  <label>Edição:</label>
+  <select name="ano" onchange="this.form.submit()">
+    <option value="">Todas</option>
+    {% for e in edicoes %}
+    <option value="{{ e.ano }}" {% if ano_atual == e.ano|stringformat:"s" %}selected{% endif %}>{{ e.nome }} ({{ e.ano }})</option>
+    {% endfor %}
+  </select>
+</form>
+<ul>
+  {% for s in startups %}
+  <li><a href="{% url 'startups:detail' s.pk %}">{{ s.nome }}</a> — {{ s.edicao.ano }} — {{ s.get_estado_residencia_display }}</li>
+  {% empty %}
+  <li>Nenhuma startup.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

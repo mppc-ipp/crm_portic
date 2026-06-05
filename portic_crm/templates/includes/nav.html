@@ -1,0 +1,27 @@
+<nav class="main-nav">
+  <a href="{% url 'home' %}" class="brand">CRM Portic</a>
+  <ul>
+    {% if nav_modules.dashboard %}
+    <li><a href="{% url 'dashboard:index' %}">Dashboard</a></li>
+    {% endif %}
+    {% if nav_modules.empresas %}
+    <li><a href="{% url 'empresas:list' %}">Empresas</a></li>
+    {% endif %}
+    {% if nav_modules.startups %}
+    <li><a href="{% url 'startups:list' %}">Startups</a></li>
+    {% endif %}
+    {% if nav_modules.projetos %}
+    <li><a href="{% url 'projetos:list' %}">Projetos</a></li>
+    {% endif %}
+    {% if nav_modules.espacos %}
+    <li><a href="{% url 'espacos:home' %}">Espaços</a></li>
+    {% endif %}
+    {% if nav_modules.administrador %}
+    <li><a href="{% url 'administrador:index' %}">Administrador</a></li>
+    {% endif %}
+    {% if user.is_staff %}
+    <li><a href="{% url 'admin:index' %}">Admin Django</a></li>
+    {% endif %}
+    <li><a href="{% url 'logout' %}">Sair</a></li>
+  </ul>
+</nav>

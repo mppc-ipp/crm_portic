@@ -1,0 +1,11 @@
+reserva_sala_portic/
+frontend/node_modules/
+frontend/.next/
+node_modules/
+.git/
+__pycache__/
+*.pyc
+.env
+db.sqlite3
+media/
+staticfiles/
