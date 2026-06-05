@@ -53,13 +53,26 @@ class EmpresaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Formato inválido. Use XXXX-XXX.")
         return value
 
-    def create(self, validated_data):
-        contactos_data = validated_data.pop("contactos", [])
-        empresa = Empresa.objects.create(**validated_data)
+    def _guardar_contactos(self, empresa, contactos_data):
+        empresa.contactos.all().delete()
         for contacto_data in contactos_data:
             if contacto_data.get("nome", "").strip():
                 Contacto.objects.create(empresa=empresa, **contacto_data)
+
+    def create(self, validated_data):
+        contactos_data = validated_data.pop("contactos", [])
+        empresa = Empresa.objects.create(**validated_data)
+        self._guardar_contactos(empresa, contactos_data)
         return empresa
+
+    def update(self, instance, validated_data):
+        contactos_data = validated_data.pop("contactos", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if contactos_data is not None:
+            self._guardar_contactos(instance, contactos_data)
+        return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

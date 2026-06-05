@@ -15,13 +15,16 @@ from portic_crm.empresas.serializers import EmpresaSerializer, InteracaoSerializ
 class EmpresaViewSet(viewsets.ModelViewSet):
     serializer_class = EmpresaSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["get", "post", "patch", "put", "head", "options"]
 
     def _pode_ver(self, user) -> bool:
         return is_admin_geral(user) or user.has_perm("empresas.view_empresa")
 
     def _pode_criar(self, user) -> bool:
         return is_admin_geral(user) or user.has_perm("empresas.add_empresa")
+
+    def _pode_editar(self, user) -> bool:
+        return is_admin_geral(user) or user.has_perm("empresas.change_empresa")
 
     def get_queryset(self):
         user = self.request.user
@@ -48,6 +51,16 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         if not self._pode_criar(request.user):
             return Response({"error": "Sem permissão para criar empresas"}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not self._pode_editar(request.user):
+            return Response({"error": "Sem permissão para editar empresas"}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not self._pode_editar(request.user):
+            return Response({"error": "Sem permissão para editar empresas"}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
 
 
 class EmpresaInteracaoAPIView(APIView):
@@ -80,3 +93,36 @@ class EmpresaInteracaoAPIView(APIView):
             **serializer.validated_data,
         )
         return Response(InteracaoSerializer(interacao).data, status=status.HTTP_201_CREATED)
+
+
+class EmpresaInteracaoDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _pode_registar(self, user) -> bool:
+        return is_admin_geral(user) or user.has_perm("empresas.change_empresa")
+
+    def _get_interacao(self, empresa_pk, pk):
+        empresa = get_object_or_404(Empresa, pk=empresa_pk)
+        ct = ContentType.objects.get_for_model(Empresa)
+        return get_object_or_404(
+            HistoricoEntrada,
+            pk=pk,
+            content_type=ct,
+            object_id=empresa.pk,
+        )
+
+    def patch(self, request, empresa_pk, pk):
+        if not self._pode_registar(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        interacao = self._get_interacao(empresa_pk, pk)
+        serializer = InteracaoSerializer(interacao, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, empresa_pk, pk):
+        if not self._pode_registar(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        interacao = self._get_interacao(empresa_pk, pk)
+        interacao.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

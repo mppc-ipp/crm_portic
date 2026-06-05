@@ -4,7 +4,11 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from portic_crm.api.auth_views import LoginAPIView, MeAPIView
 from portic_crm.api.users_views import UserLookupAPIView, UsersListAPIView
-from portic_crm.empresas.api_views import EmpresaInteracaoAPIView, EmpresaViewSet
+from portic_crm.empresas.api_views import (
+    EmpresaInteracaoAPIView,
+    EmpresaInteracaoDetailAPIView,
+    EmpresaViewSet,
+)
 from portic_crm.espacos.api_urls import urlpatterns as espacos_urls
 from portic_crm.projetos.api_views import ObjetivoViewSet, ProjetoViewSet, SecaoViewSet
 from portic_crm.projetos.projetos_api_urls import urlpatterns as projetos_extra_urls
@@ -28,6 +32,10 @@ router.register(r"projetos", ProjetoViewSet, basename="projeto")
 
 urlpatterns = [
     path("empresas/<int:empresa_pk>/interacoes", EmpresaInteracaoAPIView.as_view()),
+    path(
+        "empresas/<int:empresa_pk>/interacoes/<int:pk>",
+        EmpresaInteracaoDetailAPIView.as_view(),
+    ),
     path("auth/login", LoginAPIView.as_view()),
     path("auth/me", MeAPIView.as_view()),
     path("users", UsersListAPIView.as_view()),
