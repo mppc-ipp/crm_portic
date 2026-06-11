@@ -39,3 +39,38 @@ class HistoricoEntrada(TimeStampedModel):
 
     def __str__(self):
         return f"{self.get_tipo_display()} — {self.data}"
+
+
+class TipoNotificacao(models.TextChoices):
+    CANDIDATURA_NOVA = "CANDIDATURA_NOVA", "Nova candidatura"
+    CANDIDATURA_ESTADO = "CANDIDATURA_ESTADO", "Estado de candidatura"
+    CONTRATO_EXPIRAR = "CONTRATO_EXPIRAR", "Contrato a expirar"
+    RESERVA_PENDENTE = "RESERVA_PENDENTE", "Reserva pendente"
+    TAREFA_PRAZO = "TAREFA_PRAZO", "Tarefa com prazo"
+    EVENTO_PROXIMO = "EVENTO_PROXIMO", "Evento próximo"
+    SISTEMA = "SISTEMA", "Sistema"
+
+
+class Notificacao(TimeStampedModel):
+    utilizador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notificacoes",
+    )
+    tipo = models.CharField(max_length=40, choices=TipoNotificacao.choices)
+    titulo = models.CharField(max_length=255)
+    mensagem = models.TextField(blank=True)
+    url = models.CharField(max_length=500, blank=True)
+    lida = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "notificação"
+        verbose_name_plural = "notificações"
+        indexes = [
+            models.Index(fields=["utilizador", "lida", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return self.titulo

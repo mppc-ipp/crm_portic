@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 type Empresa = {
@@ -147,13 +148,26 @@ export default function EmpresasPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Empresas</h1>
-        <button
-          type="button"
-          onClick={() => setAMostrarForm((v) => !v)}
-          className="rounded-lg bg-portic px-4 py-2 text-sm font-medium text-white hover:bg-portic-light"
-        >
-          {aMostrarForm ? "Cancelar" : "+ Nova empresa"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportCsvButton
+            filename="empresas.csv"
+            apiPath={`/api/empresas${(() => {
+              const p = new URLSearchParams();
+              if (q) p.set("q", q);
+              if (tipo) p.set("tipo", tipo);
+              if (estado) p.set("estado", estado);
+              const qs = p.toString();
+              return qs ? `?${qs}` : "";
+            })()}`}
+          />
+          <button
+            type="button"
+            onClick={() => setAMostrarForm((v) => !v)}
+            className="rounded-lg bg-portic px-4 py-2 text-sm font-medium text-white hover:bg-portic-light"
+          >
+            {aMostrarForm ? "Cancelar" : "+ Nova empresa"}
+          </button>
+        </div>
       </div>
 
       {aMostrarForm && (

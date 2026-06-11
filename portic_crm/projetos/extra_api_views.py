@@ -347,3 +347,49 @@ class TimelineAPIView(APIView):
                 }
             )
         return Response({"tarefas": items, "dependencias": list(deps)})
+
+
+class ProjetoExportCSVAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, projeto_id):
+        if not _projeto_perm(request.user):
+            return Response(status=403)
+        from portic_crm.core.export import csv_response
+        from portic_crm.projetos.services import nome_responsavel_objetivo
+
+        projeto = get_object_or_404(Projeto, pk=projeto_id)
+        objetivos = (
+            Objetivo.objects.filter(secao__projeto_id=projeto_id)
+            .select_related("secao", "responsavel")
+            .prefetch_related("subtarefas")
+            .order_by("secao__ordem", "ordem")
+        )
+        rows = []
+        for obj in objetivos:
+            total_sub = obj.subtarefas.count()
+            concluidas = obj.subtarefas.filter(concluida=True).count()
+            rows.append(
+                {
+                    "secao": obj.secao.nome,
+                    "titulo": obj.titulo,
+                    "estado": obj.get_estado_display(),
+                    "responsavel": nome_responsavel_objetivo(obj),
+                    "data_inicio": obj.data_inicio.isoformat() if obj.data_inicio else "",
+                    "data_limite": obj.data_limite.isoformat() if obj.data_limite else "",
+                    "subtarefas": f"{concluidas}/{total_sub}",
+                }
+            )
+        return csv_response(
+            f"projeto_{projeto_id}_tarefas.csv",
+            [
+                ("secao", "Secção"),
+                ("titulo", "Título"),
+                ("estado", "Estado"),
+                ("responsavel", "Responsável"),
+                ("data_inicio", "Início"),
+                ("data_limite", "Prazo"),
+                ("subtarefas", "Subtarefas"),
+            ],
+            rows,
+        )

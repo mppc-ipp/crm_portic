@@ -104,7 +104,29 @@ class AdminUtilizadoresListAPIView(AdminPermissionMixin, APIView):
                 | Q(username__icontains=q)
                 | Q(email__icontains=q)
             )
-        return Response([_serialize_user(u) for u in qs[:200]])
+        users = list(qs[:200])
+        if request.query_params.get("format") == "csv":
+            from portic_crm.core.export import csv_response
+
+            return csv_response(
+                "utilizadores.csv",
+                [
+                    ("nome", "Nome"),
+                    ("email", "Email"),
+                    ("grupos", "Grupos"),
+                    ("is_active", "Ativo"),
+                ],
+                [
+                    {
+                        "nome": u.get("nome"),
+                        "email": u.get("email"),
+                        "grupos": ", ".join(u.get("grupos", [])),
+                        "is_active": "Sim" if u.get("is_active") else "Não",
+                    }
+                    for u in (_serialize_user(x) for x in users)
+                ],
+            )
+        return Response([_serialize_user(u) for u in users])
 
     def post(self, request):
         denied = self._check_admin(request)
@@ -442,12 +464,7 @@ def _diff_user_payload(antes: dict, depois: dict, data: dict) -> str:
 
 
 class AdminAuditoriaAPIView(AdminPermissionMixin, APIView):
-    def get(self, request):
-        denied = self._check_admin_geral(request)
-        if denied:
-            return denied
-        page = max(1, int(request.query_params.get("page", 1)))
-        page_size = min(100, max(10, int(request.query_params.get("page_size", 25))))
+    def _queryset(self, request):
         qs = HistoricoEntrada.objects.select_related(
             "registado_por", "content_type"
         ).order_by("-created_at")
@@ -460,6 +477,47 @@ class AdminAuditoriaAPIView(AdminPermissionMixin, APIView):
         q = (request.query_params.get("q") or "").strip()
         if q:
             qs = qs.filter(Q(conteudo__icontains=q) | Q(tipo__icontains=q))
+        return qs
+
+    def _serialize_item(self, h: HistoricoEntrada) -> dict:
+        return {
+            "id": h.pk,
+            "tipo": h.tipo,
+            "tipo_label": rotulo_entrada_auditoria(h),
+            "conteudo": h.conteudo[:500],
+            "data": h.data.isoformat() if h.data else None,
+            "criado_em": h.created_at.isoformat(),
+            "registado_por": (
+                h.registado_por.get_full_name() or h.registado_por.username
+                if h.registado_por
+                else None
+            ),
+            "entidade": f"{h.content_type.app_label}.{h.content_type.model}#{h.object_id}",
+            "modulo": h.content_type.app_label,
+        }
+
+    def get(self, request):
+        denied = self._check_admin_geral(request)
+        if denied:
+            return denied
+        from portic_crm.core.export import csv_response
+
+        qs = self._queryset(request)
+        if request.query_params.get("format") == "csv":
+            return csv_response(
+                "auditoria_crm.csv",
+                [
+                    ("tipo_label", "Tipo"),
+                    ("conteudo", "Conteúdo"),
+                    ("modulo", "Módulo"),
+                    ("entidade", "Entidade"),
+                    ("registado_por", "Utilizador"),
+                    ("criado_em", "Criado em"),
+                ],
+                [self._serialize_item(h) for h in qs[:5000]],
+            )
+        page = max(1, int(request.query_params.get("page", 1)))
+        page_size = min(100, max(10, int(request.query_params.get("page_size", 25))))
         total = qs.count()
         start = (page - 1) * page_size
         items = qs[start : start + page_size]
@@ -468,23 +526,6 @@ class AdminAuditoriaAPIView(AdminPermissionMixin, APIView):
                 "total": total,
                 "page": page,
                 "page_size": page_size,
-                "items": [
-                    {
-                        "id": h.pk,
-                        "tipo": h.tipo,
-                        "tipo_label": rotulo_entrada_auditoria(h),
-                        "conteudo": h.conteudo[:500],
-                        "data": h.data.isoformat() if h.data else None,
-                        "criado_em": h.created_at.isoformat(),
-                        "registado_por": (
-                            h.registado_por.get_full_name() or h.registado_por.username
-                            if h.registado_por
-                            else None
-                        ),
-                        "entidade": f"{h.content_type.app_label}.{h.content_type.model}#{h.object_id}",
-                        "modulo": h.content_type.app_label,
-                    }
-                    for h in items
-                ],
+                "items": [self._serialize_item(h) for h in items],
             }
         )

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 type Resposta = {
@@ -249,6 +250,19 @@ export default function CandidaturaDetailPage() {
             </span>
           </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <ExportCsvButton
+            filename={`candidatura_${candidatura.id}.csv`}
+            rows={candidatura.respostas.map((r) => ({
+              campo: r.campo_nome,
+              valor: r.valor,
+            }))}
+            columns={[
+              { key: "campo", header: "Campo" },
+              { key: "valor", header: "Resposta" },
+            ]}
+          />
+        </div>
       </div>
 
       <section className="mb-8">
@@ -272,7 +286,24 @@ export default function CandidaturaDetailPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Histórico de contacto</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Histórico de contacto</h2>
+          <ExportCsvButton
+            filename={`candidatura_${candidatura.id}_historico.csv`}
+            rows={historicos.map((h) => ({
+              data: h.data ?? "",
+              tipo: h.tipo_display,
+              conteudo: h.conteudo,
+              autor: h.registado_por_nome ?? "",
+            }))}
+            columns={[
+              { key: "data", header: "Data" },
+              { key: "tipo", header: "Tipo" },
+              { key: "conteudo", header: "Conteúdo" },
+              { key: "autor", header: "Autor" },
+            ]}
+          />
+        </div>
         <form onSubmit={registarHistorico} className="mb-6 space-y-3 rounded-xl border bg-white p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={labelClass}>

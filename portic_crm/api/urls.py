@@ -13,7 +13,14 @@ from portic_crm.administrador.api_views import (
 )
 from portic_crm.api.auth_views import LoginAPIView, MeAPIView
 from portic_crm.api.users_views import UserLookupAPIView, UsersListAPIView
+from portic_crm.core.api_views import (
+    NotificacaoDetailAPIView,
+    NotificacoesAPIView,
+    NotificacoesMarcarTodasAPIView,
+)
+from portic_crm.dashboard.api_views import DashboardAPIView
 from portic_crm.empresas.api_views import (
+    EmpresaEstatisticasAPIView,
     EmpresaInteracaoAPIView,
     EmpresaInteracaoDetailAPIView,
     EmpresaViewSet,
@@ -23,10 +30,12 @@ from portic_crm.espacos.api_urls import urlpatterns as espacos_urls
 from portic_crm.projetos.api_views import ObjetivoViewSet, ProjetoViewSet, SecaoViewSet
 from portic_crm.projetos.projetos_api_urls import urlpatterns as projetos_extra_urls
 from portic_crm.startups.api_views import (
+    CandidaturaEstatisticasAPIView,
     CandidaturaHistoricoAPIView,
     CandidaturaHistoricoDetailAPIView,
     CandidaturaPublicaAPIView,
     CandidaturaViewSet,
+    EdicaoRelatorioAPIView,
     EdicaoViewSet,
     FormularioViewSet,
     StartupViewSet,
@@ -57,6 +66,13 @@ router.register(r"projetos/objetivos", ObjetivoViewSet, basename="objetivo")
 router.register(r"projetos", ProjetoViewSet, basename="projeto")
 
 urlpatterns = [
+    path("dashboard", DashboardAPIView.as_view()),
+    path("notificacoes", NotificacoesAPIView.as_view()),
+    path("notificacoes/marcar-todas-lidas", NotificacoesMarcarTodasAPIView.as_view()),
+    path("notificacoes/<int:pk>", NotificacaoDetailAPIView.as_view()),
+    path("empresas/estatisticas", EmpresaEstatisticasAPIView.as_view()),
+    path("startups/candidaturas/estatisticas", CandidaturaEstatisticasAPIView.as_view()),
+    path("startups/edicoes/relatorio", EdicaoRelatorioAPIView.as_view()),
     path(
         "startups/candidatura-publica/<uuid:token>",
         CandidaturaPublicaAPIView.as_view(),

@@ -120,6 +120,36 @@ class CandidaturaViewSet(viewsets.ModelViewSet):
             qs = qs.filter(formulario_id=formulario_id)
         return qs.order_by("-submetida_em")
 
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("format") == "csv":
+            if not self._pode_ver(request.user):
+                return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+            from portic_crm.core.export import csv_response
+
+            qs = self.filter_queryset(self.get_queryset())
+            rows = []
+            for c in qs:
+                estado_nome = StatusCandidatura.nome_por_codigo(c.estado) or c.estado
+                rows.append(
+                    {
+                        "rotulo": str(c)[:120],
+                        "estado": estado_nome,
+                        "submetida_em": c.submetida_em.isoformat(),
+                        "formulario": c.formulario.titulo,
+                    }
+                )
+            return csv_response(
+                "candidaturas.csv",
+                [
+                    ("rotulo", "Candidatura"),
+                    ("estado", "Estado"),
+                    ("submetida_em", "Submetida em"),
+                    ("formulario", "Formulário"),
+                ],
+                rows,
+            )
+        return super().list(request, *args, **kwargs)
+
     def partial_update(self, request, *args, **kwargs):
         if not self._pode_alterar(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
@@ -329,6 +359,9 @@ class CandidaturaPublicaAPIView(APIView):
             actor=None,
             alvo=candidatura,
         )
+        from portic_crm.core.notifications import notificar_candidatura_nova
+
+        notificar_candidatura_nova(candidatura)
         for campo in campos:
             valor = str(respostas_map.get(str(campo.id), "")).strip()
             RespostaCampo.objects.create(
@@ -545,3 +578,68 @@ class StatusCandidaturaViewSet(_ConfiguracaoStartupsMixin, viewsets.ModelViewSet
         )
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CandidaturaEstatisticasAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not (is_admin_geral(request.user) or request.user.has_perm("startups.ver_candidaturas")):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        qs = Candidatura.objects.all()
+        formulario_id = request.query_params.get("formulario")
+        if formulario_id:
+            qs = qs.filter(formulario_id=formulario_id)
+        edicao_id = request.query_params.get("edicao")
+        if edicao_id:
+            qs = qs.filter(formulario__edicao_id=edicao_id)
+        por_estado = list(qs.values("estado").annotate(total=Count("id")).order_by("estado"))
+        for row in por_estado:
+            row["estado_nome"] = StatusCandidatura.nome_por_codigo(row["estado"]) or row["estado"]
+            row["cor"] = StatusCandidatura.cor_por_codigo(row["estado"])
+        return Response({"total": qs.count(), "por_estado": por_estado})
+
+
+class EdicaoRelatorioAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not (
+            is_admin_geral(request.user)
+            or request.user.has_perm("startups.view_startup")
+            or request.user.has_perm("startups.gerir_formularios_candidatura")
+        ):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        from portic_crm.core.export import csv_response
+        from portic_crm.startups.models import ContratoResidencia, FormularioCandidatura
+
+        rows = []
+        for edicao in Edicao.objects.order_by("-ano"):
+            rows.append(
+                {
+                    "ano": edicao.ano,
+                    "nome": edicao.nome,
+                    "ativa": "Sim" if edicao.ativa else "Não",
+                    "startups": edicao.startups.count(),
+                    "candidaturas": Candidatura.objects.filter(formulario__edicao=edicao).count(),
+                    "formularios": FormularioCandidatura.objects.filter(edicao=edicao).count(),
+                    "contratos_ativos": ContratoResidencia.objects.filter(
+                        startup__edicao=edicao, ativo=True
+                    ).count(),
+                }
+            )
+        if request.query_params.get("format") == "csv":
+            return csv_response(
+                "edicoes_relatorio.csv",
+                [
+                    ("ano", "Ano"),
+                    ("nome", "Nome"),
+                    ("ativa", "Ativa"),
+                    ("startups", "Startups"),
+                    ("candidaturas", "Candidaturas"),
+                    ("formularios", "Formulários"),
+                    ("contratos_ativos", "Contratos ativos"),
+                ],
+                rows,
+            )
+        return Response(rows)

@@ -24,7 +24,7 @@ urlpatterns = [
     path("admin/reservas/<int:pk>/aprovar", v.AdminReservaAprovarAPIView.as_view()),
     path("admin/reservas/<int:pk>/rejeitar", v.AdminReservaRejeitarAPIView.as_view()),
     path("admin/historico", v.AdminHistoricoAPIView.as_view()),
-    path("admin/auditoria", v.AdminAuditoriaAPIView.as_view()),
+    path("espacos/admin/auditoria", v.AdminAuditoriaAPIView.as_view()),
     path("admin/estatisticas", v.AdminEstatisticasAPIView.as_view()),
     path("viaturas/<int:pk>", v.ViaturaDetailAPIView.as_view()),
     path("viaturas", v.ViaturaListAPIView.as_view()),

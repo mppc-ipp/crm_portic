@@ -12,7 +12,6 @@ from rest_framework.views import APIView
 from portic_crm.core.permissions import is_admin_geral
 from portic_crm.espacos.models import (
     AcaoTokenReserva,
-    AuditoriaEspacos,
     Localizacao,
     ModuloEspaco,
     PedidoReserva,
@@ -322,13 +321,40 @@ class AdminHistoricoAPIView(APIView):
     def get(self, request):
         if not _admin_ok(request.user):
             return Response(status=403)
+        from portic_crm.core.export import csv_response
+
         modulo = _modulo_from_request(request)
         qs = (
             _pedidos_queryset(modulo)
             .filter(status__in=[StatusPedidoReserva.APROVADO, StatusPedidoReserva.REJEITADO])
             .order_by("-created_at")[:200]
         )
-        return Response([pedido_frontend(p, include_user=True) for p in qs])
+        items = [pedido_frontend(p, include_user=True) for p in qs]
+        if request.query_params.get("format") == "csv":
+            rows = []
+            for item in items:
+                user = item.get("user") or {}
+                rows.append(
+                    {
+                        "id": item.get("id", ""),
+                        "titulo": item.get("titulo", ""),
+                        "status": item.get("status", ""),
+                        "requerente": user.get("nome", user.get("email", "")),
+                        "criado_em": item.get("createdAt", ""),
+                    }
+                )
+            return csv_response(
+                f"historico_{modulo.lower()}.csv",
+                [
+                    ("id", "ID"),
+                    ("titulo", "Título"),
+                    ("status", "Estado"),
+                    ("requerente", "Requerente"),
+                    ("criado_em", "Criado em"),
+                ],
+                rows,
+            )
+        return Response(items)
 
 
 class AdminAuditoriaAPIView(APIView):
@@ -337,30 +363,54 @@ class AdminAuditoriaAPIView(APIView):
     def get(self, request):
         if not _admin_ok(request.user):
             return Response(status=403)
+        from portic_crm.core.export import csv_response
+        from portic_crm.espacos.models import HistoricoReserva
+
         modulo = _modulo_from_request(request)
         qs = (
-            AuditoriaEspacos.objects.filter(modulo=modulo)
-            .select_related("utilizador", "unidade")
+            HistoricoReserva.objects.filter(pedido__modulo=modulo)
+            .select_related("utilizador_acao", "pedido")
             .order_by("-criado_em")[:200]
         )
-        return Response(
-            [
-                {
-                    "id": str(a.id),
-                    "acao": a.acao,
-                    "entidade": a.entidade,
-                    "entidadeId": a.entidade_id,
-                    "descricao": a.descricao,
-                    "criadoEm": a.criado_em.isoformat(),
-                    "utilizador": {
-                        "nome": (a.utilizador.get_full_name() or a.utilizador.username) if a.utilizador else "—",
-                        "email": a.utilizador.email if a.utilizador else "",
-                    },
-                    "unidade": {"id": str(a.unidade_id), "nome": a.unidade.nome} if a.unidade else None,
-                }
-                for a in qs
-            ]
-        )
+        items = [
+            {
+                "id": str(h.id),
+                "acao": h.acao,
+                "entidade": "PedidoReserva",
+                "entidadeId": str(h.pedido_id),
+                "descricao": h.descricao,
+                "criadoEm": h.criado_em.isoformat(),
+                "utilizador": {
+                    "nome": (
+                        h.utilizador_acao.get_full_name() or h.utilizador_acao.username
+                    )
+                    if h.utilizador_acao
+                    else "—",
+                    "email": h.utilizador_acao.email if h.utilizador_acao else "",
+                },
+                "unidade": None,
+            }
+            for h in qs
+        ]
+        if request.query_params.get("format") == "csv":
+            return csv_response(
+                f"auditoria_{modulo.lower()}.csv",
+                [
+                    ("acao", "Ação"),
+                    ("descricao", "Descrição"),
+                    ("entidadeId", "Pedido"),
+                    ("criadoEm", "Data"),
+                    ("utilizador", "Utilizador"),
+                ],
+                [
+                    {
+                        **it,
+                        "utilizador": it["utilizador"]["nome"],
+                    }
+                    for it in items
+                ],
+            )
+        return Response(items)
 
 
 class AdminReservaAprovarAPIView(APIView):
@@ -394,14 +444,28 @@ class AdminEstatisticasAPIView(APIView):
     def get(self, request):
         if not (is_admin_geral(request.user) or request.user.has_perm("espacos.aprovar_reserva")):
             return Response(status=403)
-        from django.db.models import Count
+        from portic_crm.core.export import csv_response
+        from portic_crm.espacos.services.estatisticas import calcular_estatisticas
 
         modulo = _modulo_from_request(request)
-        por_modulo = (
-            PedidoReserva.objects.filter(modulo=modulo)
-            .values("modulo")
-            .annotate(total=Count("id"))
-            .order_by("modulo")
-        )
-        total = PedidoReserva.objects.filter(modulo=modulo).count()
-        return Response({"por_modulo": list(por_modulo), "total_pedidos": total, "modulo": modulo})
+        data_inicio = request.query_params.get("dataInicio")
+        data_fim = request.query_params.get("dataFim")
+        unidade_id = (request.query_params.get("unidadeId") or "").strip() or None
+        try:
+            payload = calcular_estatisticas(modulo, data_inicio, data_fim, unidade_id)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        if request.query_params.get("format") == "csv":
+            rows = []
+            resumo = payload["resumo"]
+            for key, val in resumo.items():
+                rows.append({"metrica": key, "valor": val})
+            for row in payload.get("porHoraDia", []):
+                rows.append({"metrica": f"hora_{row['hora']}", "valor": row["minutos"]})
+            return csv_response(
+                f"estatisticas_{modulo.lower()}.csv",
+                [("metrica", "Métrica"), ("valor", "Valor")],
+                rows,
+            )
+        return Response(payload)

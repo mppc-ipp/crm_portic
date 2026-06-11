@@ -19,6 +19,7 @@ import TaskDetailPanel from "@/components/projetos/TaskDetailPanel";
 import TimelineView from "@/components/projetos/TimelineView";
 import type { Objetivo, Projeto, TimelineData, VistaGuardada, VistaProjeto } from "@/components/projetos/types";
 import { atribuiveisDoProjeto, objetivoCorrespondeAtribuicao } from "@/components/projetos/utils";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 export default function ProjetosPage() {
@@ -333,6 +334,11 @@ export default function ProjetosPage() {
                 {ativo.resumo && <p className="mt-1 text-sm text-slate-500">{ativo.resumo}</p>}
               </div>
               <div className="flex items-center gap-2">
+                <ExportCsvButton
+                  filename={`projeto_${ativo.id}_tarefas.csv`}
+                  apiPath={`/api/projetos/${ativo.id}/export`}
+                  className="border-slate-200 text-xs font-medium text-slate-600"
+                />
                 <ActivityFeed projetoId={ativo.id} />
                 <CustomFieldsManager
                   campos={ativo.campos_personalizados ?? []}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 type Campo = {
@@ -82,7 +83,6 @@ export default function StartupsPage() {
     ativo: true,
     campos: [{ ...CAMPO_VAZIO }] as Campo[],
   });
-
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro("");
@@ -197,7 +197,12 @@ export default function StartupsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Startups</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Startups</h1>
+          <Link href="/startups/edicoes" className="text-sm text-portic hover:underline">
+            Relatório por edições
+          </Link>
+        </div>
         <button
           type="button"
           onClick={abrirNovoForm}
@@ -253,6 +258,10 @@ export default function StartupsPage() {
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Candidaturas recebidas</h2>
+          <ExportCsvButton
+            filename="candidaturas.csv"
+            apiPath={`/api/startups/candidaturas${filtroFormulario ? `?formulario=${filtroFormulario}` : ""}`}
+          />
           {formularios.length > 1 && (
             <select
               value={filtroFormulario}

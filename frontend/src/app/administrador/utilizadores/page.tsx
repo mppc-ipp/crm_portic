@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 type Utilizador = {
@@ -49,12 +50,18 @@ export default function UtilizadoresPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Utilizadores</h2>
-        <Link
-          href="/administrador/utilizadores/novo"
-          className="rounded-lg bg-portic px-4 py-2 text-sm font-medium text-white"
-        >
-          Novo utilizador
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <ExportCsvButton
+            filename="utilizadores.csv"
+            apiPath={`/api/admin/utilizadores${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`}
+          />
+          <Link
+            href="/administrador/utilizadores/novo"
+            className="rounded-lg bg-portic px-4 py-2 text-sm font-medium text-white"
+          >
+            Novo utilizador
+          </Link>
+        </div>
       </div>
       <input
         value={q}

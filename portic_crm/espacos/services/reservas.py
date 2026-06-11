@@ -95,6 +95,9 @@ def criar_pedido_com_ocorrencias(user, criado_por, titulo, descricao, numero_pes
         descricao="Pedido de reserva criado",
     )
     _criar_tokens_email(pedido)
+    from portic_crm.core.notifications import notificar_reserva_pendente
+
+    notificar_reserva_pendente(pedido)
     return pedido
 
 

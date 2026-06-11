@@ -1,5 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -52,6 +52,41 @@ class EmpresaViewSet(viewsets.ModelViewSet):
             qs = qs.filter(estado=estado)
         return qs
 
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("format") == "csv":
+            if not self._pode_ver(request.user):
+                return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+            from portic_crm.core.export import csv_response
+
+            qs = self.filter_queryset(self.get_queryset())
+            return csv_response(
+                "empresas.csv",
+                [
+                    ("nome", "Nome"),
+                    ("nif", "NIF"),
+                    ("cae", "CAE"),
+                    ("setor", "Setor"),
+                    ("tipo", "Tipo"),
+                    ("estado", "Estado"),
+                    ("email", "Email"),
+                    ("localidade", "Localidade"),
+                ],
+                [
+                    {
+                        "nome": e.nome,
+                        "nif": e.nif,
+                        "cae": e.cae,
+                        "setor": e.setor,
+                        "tipo": e.get_tipo_display(),
+                        "estado": e.get_estado_display(),
+                        "email": e.email,
+                        "localidade": e.localidade,
+                    }
+                    for e in qs
+                ],
+            )
+        return super().list(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
         if not self._pode_criar(request.user):
             return Response({"error": "Sem permissão para criar empresas"}, status=status.HTTP_403_FORBIDDEN)
@@ -93,6 +128,25 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         return response
 
 
+class EmpresaEstatisticasAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not (is_admin_geral(request.user) or request.user.has_perm("empresas.view_empresa")):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {
+                "total": Empresa.objects.count(),
+                "por_tipo": list(
+                    Empresa.objects.values("tipo").annotate(total=Count("id")).order_by("tipo")
+                ),
+                "por_estado": list(
+                    Empresa.objects.values("estado").annotate(total=Count("id")).order_by("estado")
+                ),
+            }
+        )
+
+
 class EmpresaInteracaoAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -105,8 +159,22 @@ class EmpresaInteracaoAPIView(APIView):
     def get(self, request, empresa_pk):
         if not self._pode_ver(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        from portic_crm.core.export import csv_response
+
         empresa = get_object_or_404(Empresa, pk=empresa_pk)
         interacoes = empresa.historicos.order_by("created_at")
+        if request.query_params.get("format") == "csv":
+            data = InteracaoSerializer(interacoes, many=True).data
+            return csv_response(
+                f"empresa_{empresa_pk}_interacoes.csv",
+                [
+                    ("data", "Data"),
+                    ("tipo_display", "Tipo"),
+                    ("conteudo", "Conteúdo"),
+                    ("registado_por_nome", "Registado por"),
+                ],
+                data,
+            )
         return Response(InteracaoSerializer(interacoes, many=True).data)
 
     def post(self, request, empresa_pk):

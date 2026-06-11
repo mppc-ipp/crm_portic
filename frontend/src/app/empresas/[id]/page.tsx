@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
 type Contacto = { id: number; nome: string; cargo: string; email: string; telefone: string };
@@ -383,7 +384,13 @@ export default function EmpresaDetailPage() {
         )}
       </ul>
 
-      <h2 className="mb-3 mt-8 font-semibold">Interações</h2>
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">Interações</h2>
+        <ExportCsvButton
+          filename={`empresa_${params.id}_interacoes.csv`}
+          apiPath={`/api/empresas/${params.id}/interacoes`}
+        />
+      </div>
       <form onSubmit={registarInteracao} className="mb-6 space-y-3 rounded-xl border bg-white p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={labelClass}>

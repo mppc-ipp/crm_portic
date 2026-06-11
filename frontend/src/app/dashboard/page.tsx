@@ -1,10 +1,16 @@
 "use client";
 
+import NotificationCenter from "@/components/reports/NotificationCenter";
+
 export default function DashboardPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <p className="text-slate-600">Resumo do CRM Portic.</p>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-sm text-slate-600">Centro de notificações do CRM Portic.</p>
+      </div>
+
+      <NotificationCenter />
     </div>
   );
 }

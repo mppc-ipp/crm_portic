@@ -8,6 +8,7 @@ from portic_crm.projetos.extra_api_views import (
     DependenciaDetailAPIView,
     DependenciaListCreateAPIView,
     ObjetivoDetailAPIView,
+    ProjetoExportCSVAPIView,
     SubtarefaDetailAPIView,
     SubtarefaListCreateAPIView,
     TimelineAPIView,
@@ -30,4 +31,5 @@ urlpatterns = [
     path("projetos/vistas/<int:pk>", VistaGuardadaDetailAPIView.as_view()),
     path("projetos/<int:projeto_id>/atividade", AtividadeProjetoAPIView.as_view()),
     path("projetos/<int:projeto_id>/timeline", TimelineAPIView.as_view()),
+    path("projetos/<int:projeto_id>/export", ProjetoExportCSVAPIView.as_view()),
 ]

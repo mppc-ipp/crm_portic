@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 import { rotuloAcaoAuditoria, TIPOS_AUDITORIA } from "@/lib/auditoriaRotulos";
 
@@ -65,6 +66,15 @@ export default function AuditoriaPage() {
 
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 1;
 
+  const exportPath = useMemo(() => {
+    const params = new URLSearchParams();
+    if (tipo.trim()) params.set("tipo", tipo.trim());
+    if (modulo.trim()) params.set("modulo", modulo.trim());
+    if (q.trim()) params.set("q", q.trim());
+    const qs = params.toString();
+    return `/api/admin/auditoria${qs ? `?${qs}` : ""}`;
+  }, [tipo, modulo, q]);
+
   return (
     <div>
       <h2 className="mb-2 text-lg font-semibold">Auditoria global</h2>
@@ -97,6 +107,7 @@ export default function AuditoriaPage() {
           placeholder="Pesquisar no conteúdo…"
           className="min-w-[200px] flex-1 rounded-lg border px-3 py-2 text-sm"
         />
+        <ExportCsvButton filename="auditoria_crm.csv" apiPath={exportPath} />
       </div>
       {erro && <p className="mb-3 text-sm text-red-600">{erro}</p>}
       {loading ? (
