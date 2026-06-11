@@ -3,7 +3,7 @@ import re
 from rest_framework import serializers
 
 from portic_crm.core.models import HistoricoEntrada
-from portic_crm.empresas.models import Contacto, Empresa
+from portic_crm.empresas.models import Contacto, Empresa, TipoInteracao
 
 CODIGO_POSTAL_RE = re.compile(r"^\d{4}-\d{3}$")
 
@@ -81,7 +81,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
 
 
 class InteracaoSerializer(serializers.ModelSerializer):
-    tipo_display = serializers.CharField(source="get_tipo_display", read_only=True)
+    tipo_display = serializers.SerializerMethodField()
     registado_por_nome = serializers.SerializerMethodField()
 
     class Meta:
@@ -97,12 +97,35 @@ class InteracaoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def get_tipo_display(self, obj):
+        nome = TipoInteracao.nome_por_codigo(obj.tipo)
+        if nome:
+            return nome
+        return obj.tipo.replace("_", " ").title()
+
     def get_registado_por_nome(self, obj):
         if obj.registado_por:
             return obj.registado_por.get_full_name() or obj.registado_por.username
         return None
 
+    def validate_tipo(self, value):
+        if not TipoInteracao.objects.filter(codigo=value, ativo=True).exists():
+            raise serializers.ValidationError("Tipo de interação inválido ou inativo.")
+        return value
+
     def validate_conteudo(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError("O texto da interação é obrigatório.")
+        return value.strip()
+
+
+class TipoInteracaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoInteracao
+        fields = ["id", "codigo", "nome", "ordem", "ativo", "created_at"]
+        read_only_fields = ["id", "codigo", "created_at"]
+
+    def validate_nome(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("O nome é obrigatório.")
         return value.strip()

@@ -158,7 +158,9 @@ def sincronizar_membros(projeto: Projeto, emails: list) -> list[MembroProjeto]:
 
 
 def registar_atividade(projeto, utilizador, acao, descricao, objetivo=None, metadata=None):
-    return AtividadeProjeto.objects.create(
+    from portic_crm.core.audit import registar_auditoria
+
+    atividade = AtividadeProjeto.objects.create(
         projeto=projeto,
         utilizador=utilizador,
         objetivo=objetivo,
@@ -166,6 +168,9 @@ def registar_atividade(projeto, utilizador, acao, descricao, objetivo=None, meta
         descricao=descricao,
         metadata=metadata or {},
     )
+    alvo = objetivo if objetivo is not None else projeto
+    registar_auditoria(acao, descricao, actor=utilizador, alvo=alvo)
+    return atividade
 
 
 def projeto_de_objetivo(objetivo: Objetivo) -> Projeto:

@@ -1,5 +1,5 @@
 /**
- * API client — compatível com o frontend reserva_sala_portic e backend Django.
+ * API client — backend Django.
  */
 function resolveApiBase(): string {
   if (typeof window !== "undefined") {
@@ -64,35 +64,6 @@ export function withAuthHeaders(headers?: HeadersInit, body?: BodyInit | null): 
     if (!nextHeaders.has("Content-Type")) nextHeaders.set("Content-Type", "application/json");
   }
   return nextHeaders;
-}
-
-import type { ModuloReserva } from "./modulo";
-import { getModuloConfig } from "./modulo";
-
-export async function apiFetchModulo<T>(modulo: ModuloReserva, path: string, init?: RequestInit): Promise<T> {
-  const cfg = getModuloConfig(modulo);
-  const normalized = path.startsWith("/api/") ? path : `/api/${path.replace(/^\//, "")}`;
-  if (modulo === "viaturas") {
-    if (normalized.startsWith("/api/viaturas") || normalized.includes("-viatura")) return apiFetch<T>(normalized, init);
-    const map: Record<string, string> = {
-      "/api/salas": cfg.apiCatalog,
-      "/api/minhas-reservas": cfg.apiMinhasReservas,
-      "/api/calendario": cfg.apiCalendario,
-      "/api/reservas": cfg.apiReservas,
-      "/api/admin/salas": cfg.apiAdminRecursos,
-      "/api/admin/localizacoes": cfg.apiAdminLocalizacoes,
-      "/api/admin/reservas": cfg.apiAdminReservas,
-      "/api/admin/historico": cfg.apiAdminHistorico,
-      "/api/admin/estatisticas": cfg.apiAdminEstatisticas,
-      "/api/admin/auditoria": cfg.apiAdminAuditoria,
-    };
-    for (const [from, to] of Object.entries(map)) {
-      if (normalized === from || normalized.startsWith(from + "/")) {
-        return apiFetch<T>(normalized.replace(from, to), init);
-      }
-    }
-  }
-  return apiFetch<T>(normalized, init);
 }
 
 export type ApiFetchOptions = RequestInit & {
@@ -177,9 +148,10 @@ export type UserSession = {
   email?: string;
   modulos: Record<string, boolean>;
   admin_geral: boolean;
+  is_superuser?: boolean;
+  is_staff?: boolean;
+  grupos?: string[];
   tipo?: string;
-  adminModulos?: { salas: boolean; viaturas: boolean };
-  modulosInstalacao?: { salas: boolean; viaturas: boolean };
 };
 
 export function getStoredUser(): UserSession | null {

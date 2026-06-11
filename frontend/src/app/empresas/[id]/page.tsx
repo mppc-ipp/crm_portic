@@ -38,6 +38,14 @@ type Interacao = {
   created_at: string;
 };
 
+type TipoInteracao = {
+  id: number;
+  codigo: string;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
+};
+
 const TIPOS = [
   { value: "CLIENTE", label: "Cliente" },
   { value: "PARCEIRO", label: "Parceiro" },
@@ -52,12 +60,6 @@ const ESTADOS = [
   { value: "SUSPENSO", label: "Suspenso" },
   { value: "STARTUP", label: "StartUp" },
   { value: "PARCEIRA", label: "Parceira" },
-] as const;
-
-const TIPOS_INTERACAO = [
-  { value: "EVENTO", label: "Evento" },
-  { value: "PEDIDO_PORTIC", label: "Pedido Portic" },
-  { value: "PEDIDO_EMPRESA", label: "Pedido Empresa" },
 ] as const;
 
 const CONTACTO_VAZIO: ContactoForm = { nome: "", cargo: "", email: "", telefone: "" };
@@ -125,10 +127,11 @@ export default function EmpresaDetailPage() {
   const params = useParams<{ id: string }>();
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
+  const [tiposInteracao, setTiposInteracao] = useState<TipoInteracao[]>([]);
   const [aGuardar, setAGuardar] = useState(false);
   const [erro, setErro] = useState("");
   const [formInteracao, setFormInteracao] = useState({
-    tipo: "EVENTO",
+    tipo: "",
     data: "",
     conteudo: "",
   });
@@ -154,7 +157,7 @@ export default function EmpresaDetailPage() {
 
   const [interacaoAEditar, setInteracaoAEditar] = useState<Interacao | null>(null);
   const [formEditarInteracao, setFormEditarInteracao] = useState({
-    tipo: "EVENTO",
+    tipo: "",
     data: "",
     conteudo: "",
   });
@@ -172,10 +175,19 @@ export default function EmpresaDetailPage() {
     setInteracoes(data);
   }, [params.id]);
 
+  const carregarTiposInteracao = useCallback(async () => {
+    const data = await apiFetch<TipoInteracao[]>("/api/empresas/tipos-interacao?ativos=1");
+    setTiposInteracao(data);
+    if (data.length > 0) {
+      setFormInteracao((f) => (f.tipo ? f : { ...f, tipo: data[0].codigo }));
+    }
+  }, []);
+
   useEffect(() => {
     carregarEmpresa().catch(console.error);
     carregarInteracoes().catch(console.error);
-  }, [carregarEmpresa, carregarInteracoes]);
+    carregarTiposInteracao().catch(console.error);
+  }, [carregarEmpresa, carregarInteracoes, carregarTiposInteracao]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -242,7 +254,11 @@ export default function EmpresaDetailPage() {
           data: formInteracao.data || null,
         }),
       });
-      setFormInteracao({ tipo: "EVENTO", data: "", conteudo: "" });
+      setFormInteracao({
+        tipo: tiposInteracao[0]?.codigo ?? "",
+        data: "",
+        conteudo: "",
+      });
       await carregarInteracoes();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao registar interação");
@@ -377,9 +393,9 @@ export default function EmpresaDetailPage() {
               onChange={(e) => setFormInteracao((f) => ({ ...f, tipo: e.target.value }))}
               className={inputClass}
             >
-              {TIPOS_INTERACAO.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {tiposInteracao.map((t) => (
+                <option key={t.codigo} value={t.codigo}>
+                  {t.nome}
                 </option>
               ))}
             </select>
@@ -724,9 +740,19 @@ export default function EmpresaDetailPage() {
                     }
                     className={inputClass}
                   >
-                    {TIPOS_INTERACAO.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
+                    {(interacaoAEditar &&
+                    !tiposInteracao.some((t) => t.codigo === formEditarInteracao.tipo)
+                      ? [
+                          {
+                            codigo: formEditarInteracao.tipo,
+                            nome: interacaoAEditar.tipo_display,
+                          },
+                          ...tiposInteracao,
+                        ]
+                      : tiposInteracao
+                    ).map((t) => (
+                      <option key={t.codigo} value={t.codigo}>
+                        {t.nome}
                       </option>
                     ))}
                   </select>

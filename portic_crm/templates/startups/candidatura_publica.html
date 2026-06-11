@@ -8,11 +8,8 @@
 <body>
 <div class="container">
   <h1>{{ formulario.titulo }}</h1>
-  <p>Edição {{ formulario.edicao.ano }}</p>
   <form method="post">
     {% csrf_token %}
-    <p><label>Nome da startup *<br><input name="nome_startup" required></label></p>
-    <p><label>Email de contacto *<br><input type="email" name="email_contacto" required></label></p>
     {% for campo in campos %}
     <p><label>{{ campo.nome }}{% if campo.obrigatorio %} *{% endif %}<br>
       {% if campo.tipo == "TEXTAREA" %}

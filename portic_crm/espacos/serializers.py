@@ -101,6 +101,27 @@ class ViaturaSerializer(serializers.ModelSerializer):
             return obj.foto.url
         return None
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        unidade = data.get("unidade")
+        return {
+            "id": str(data["id"]),
+            "nome": data["nome"],
+            "matricula": data["matricula"],
+            "marca": data.get("marca") or None,
+            "modelo": data.get("modelo") or None,
+            "cor": data.get("cor") or None,
+            "capacidade": data["capacidade"],
+            "fotoUrl": data.get("foto_url"),
+            "descricao": data.get("descricao") or "",
+            "localizacao": data["localizacao"],
+            "recursos": data.get("recursos") or [],
+            "status": data["status"],
+            "visibilidade": data.get("visibilidade"),
+            "unidadeId": str(unidade["id"]) if unidade else None,
+            "unidade": unidade,
+        }
+
 
 def _sala_resumo(sala):
     if not sala:
@@ -113,8 +134,21 @@ def _sala_resumo(sala):
     }
 
 
+def _viatura_resumo(viatura):
+    if not viatura:
+        return None
+    return {
+        "id": str(viatura.id),
+        "nome": viatura.nome,
+        "matricula": viatura.matricula,
+        "localizacao": viatura.localizacao,
+        "capacidade": viatura.capacidade,
+    }
+
+
 def _ocorrencia_frontend(o):
     sala = o.sala
+    viatura = o.viatura
     return {
         "id": str(o.id),
         "salaId": str(o.sala_id) if o.sala_id else None,
@@ -123,6 +157,7 @@ def _ocorrencia_frontend(o):
         "dataFim": o.data_fim.isoformat(),
         "status": o.status,
         "sala": _sala_resumo(sala),
+        "viatura": _viatura_resumo(viatura),
     }
 
 

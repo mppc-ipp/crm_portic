@@ -16,6 +16,8 @@ urlpatterns = [
     path("admin/unidades", v.AdminUnidadesAPIView.as_view()),
     path("admin/salas", v.AdminSalasListAPIView.as_view()),
     path("admin/salas/<int:pk>", v.AdminSalaDetailAPIView.as_view()),
+    path("admin/viaturas", v.AdminViaturasListAPIView.as_view()),
+    path("admin/viaturas/<int:pk>", v.AdminViaturaDetailAPIView.as_view()),
     path("admin/localizacoes", v.AdminLocalizacoesAPIView.as_view()),
     path("admin/localizacoes/<int:pk>", v.AdminLocalizacaoDetailAPIView.as_view()),
     path("admin/reservas", v.AdminReservasListAPIView.as_view()),
@@ -35,4 +37,8 @@ urlpatterns = [
     path("admin/reservas-viatura/<int:pk>/aprovar", v.AdminReservaAprovarAPIView.as_view()),
     path("admin/reservas-viatura/<int:pk>/rejeitar", v.AdminReservaRejeitarAPIView.as_view()),
     path("admin/estatisticas-viatura", v.AdminEstatisticasAPIView.as_view()),
+    path("admin/historico-viatura", v.AdminHistoricoAPIView.as_view()),
+    path("admin/auditoria-viatura", v.AdminAuditoriaAPIView.as_view()),
+    path("admin/localizacoes-viatura", v.AdminLocalizacoesAPIView.as_view()),
+    path("admin/localizacoes-viatura/<int:pk>", v.AdminLocalizacaoDetailAPIView.as_view()),
 ]

@@ -12,18 +12,12 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
   const pathname = usePathname();
 
   const podeAdmin = adminGeral || Boolean(modulos.administrador);
-  const podeEspacos = adminGeral || Boolean(modulos.espacos);
 
   const links: Array<{ href: string; label: string; show: boolean }> = [
     { href: "/dashboard", label: "Dashboard", show: adminGeral || Boolean(modulos.dashboard) },
     { href: "/empresas", label: "Empresas", show: adminGeral || Boolean(modulos.empresas) },
     { href: "/startups", label: "Startups", show: adminGeral || Boolean(modulos.startups) },
     { href: "/projetos", label: "Projetos", show: adminGeral || Boolean(modulos.projetos) },
-    { href: "/salas", label: "Salas", show: podeEspacos },
-    { href: "/minhas-reservas", label: "Minhas reservas", show: podeEspacos },
-    { href: "/admin/reservas", label: "Aprovar reservas", show: podeEspacos },
-    { href: "/admin/calendario", label: "Calendário", show: adminGeral },
-    { href: "/admin/salas", label: "Gestão de salas", show: adminGeral },
     { href: "/administrador", label: "Administração", show: podeAdmin },
   ];
 

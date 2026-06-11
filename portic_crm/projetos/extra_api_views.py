@@ -93,16 +93,38 @@ class SubtarefaDetailAPIView(APIView):
         if not _projeto_perm(request.user):
             return Response(status=403)
         st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
+        concluida_antes = st.concluida
         ser = SubtarefaWriteSerializer(st, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
-        ser.save()
+        st = ser.save()
+        objetivo = st.objetivo
+        if concluida_antes != st.concluida:
+            msg = f"Subtarefa «{st.titulo}»: {'marcada como concluída' if st.concluida else 'reaberta'}"
+        else:
+            msg = f"Actualizou subtarefa «{st.titulo}»"
+        registar_atividade(
+            objetivo.projeto,
+            request.user,
+            "SUBTAREFA_ATUALIZADA",
+            msg,
+            objetivo=objetivo,
+        )
         return Response(SubtarefaSerializer(st).data)
 
     def delete(self, request, pk):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        st = get_object_or_404(Subtarefa, pk=pk)
+        st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
+        objetivo = st.objetivo
+        titulo = st.titulo
         st.delete()
+        registar_atividade(
+            objetivo.projeto,
+            request.user,
+            "SUBTAREFA_ELIMINADA",
+            f"Eliminou subtarefa «{titulo}» de «{objetivo.titulo}»",
+            objetivo=objetivo,
+        )
         return Response(status=204)
 
 
@@ -168,7 +190,18 @@ class DependenciaDetailAPIView(APIView):
     def delete(self, request, pk):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        dep = get_object_or_404(DependenciaObjetivo, pk=pk)
+        dep = get_object_or_404(
+            DependenciaObjetivo.objects.select_related("predecessora", "sucessora__secao__projeto"),
+            pk=pk,
+        )
+        sucessora = dep.sucessora
+        registar_atividade(
+            sucessora.projeto,
+            request.user,
+            "DEPENDENCIA_REMOVIDA",
+            f"Removeu dependência: «{sucessora.titulo}» já não depende de «{dep.predecessora.titulo}»",
+            objetivo=sucessora,
+        )
         dep.delete()
         return Response(status=204)
 
@@ -200,8 +233,11 @@ class CampoPersonalizadoDetailAPIView(APIView):
     def delete(self, request, pk):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        campo = get_object_or_404(CampoPersonalizado, pk=pk)
+        campo = get_object_or_404(CampoPersonalizado.objects.select_related("projeto"), pk=pk)
+        projeto = campo.projeto
+        nome = campo.nome
         campo.delete()
+        registar_atividade(projeto, request.user, "CAMPO_REMOVIDO", f"Removeu campo «{nome}»")
         return Response(status=204)
 
 

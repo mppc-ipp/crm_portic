@@ -124,12 +124,21 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         registar_atividade(projeto, self.request.user, "PROJETO_CRIADO", f"Criou o projeto «{projeto.nome}»")
 
     def perform_update(self, serializer):
+        instance = self.get_object()
+        estado_antes = instance.estado
         projeto = serializer.save()
         if "membros_emails" in self.request.data:
             membros_emails = self.request.data.get("membros_emails", [])
             if isinstance(membros_emails, list):
                 self._sincronizar_membros_seguro(projeto, membros_emails)
         registar_atividade(projeto, self.request.user, "PROJETO_ATUALIZADO", f"Atualizou o projeto «{projeto.nome}»")
+        if estado_antes != projeto.estado:
+            registar_atividade(
+                projeto,
+                self.request.user,
+                "PROJETO_ESTADO",
+                f"Projeto «{projeto.nome}»: {estado_antes} → {projeto.estado}",
+            )
 
 
 class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
@@ -202,6 +211,8 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        instance = self.get_object()
+        estado_antes = instance.estado
         obj = serializer.save()
         registar_atividade(
             obj.projeto,
@@ -210,6 +221,14 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
             f"Atualizou «{obj.titulo}»",
             objetivo=obj,
         )
+        if estado_antes != obj.estado:
+            registar_atividade(
+                obj.projeto,
+                self.request.user,
+                "TAREFA_ESTADO",
+                f"«{obj.titulo}»: {estado_antes} → {obj.estado}",
+                objetivo=obj,
+            )
 
     def perform_destroy(self, instance):
         projeto = instance.projeto

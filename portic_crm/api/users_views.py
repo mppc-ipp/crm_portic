@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from portic_crm.core.permissions import pode_gerir_utilizadores
+
 User = get_user_model()
 
 
@@ -10,6 +12,8 @@ class UsersListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not pode_gerir_utilizadores(request.user):
+            return Response({"error": "Sem permissão"}, status=403)
         users = User.objects.filter(is_active=True).order_by("first_name", "username")[:100]
         return Response(
             [

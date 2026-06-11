@@ -117,6 +117,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Grupos (nomes estáveis para código e migrations)
+CRM_VERSION = os.environ.get("CRM_VERSION", "0.1.0")
+
 GRUPO_ADMIN_GERAL = "AdministradorGeral"
 GRUPO_ADMIN_PARCIAL = "AdministradorParcial"
 GRUPO_UTILIZADOR_COMUM = "UtilizadorComum"

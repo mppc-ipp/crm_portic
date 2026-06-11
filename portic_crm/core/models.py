@@ -21,11 +21,7 @@ class HistoricoEntrada(TimeStampedModel):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
 
-    tipo = models.CharField(
-        max_length=20,
-        choices=TipoHistorico.choices,
-        default=TipoHistorico.TEXTO_LIVRE,
-    )
+    tipo = models.CharField(max_length=40, default=TipoHistorico.TEXTO_LIVRE)
     data = models.DateField(null=True, blank=True)
     conteudo = models.TextField()
     registado_por = models.ForeignKey(

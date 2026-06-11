@@ -112,17 +112,7 @@ class CandidaturaPublicaView(View):
     @transaction.atomic
     def post(self, request, token):
         formulario = self.get_formulario(token)
-        nome_startup = request.POST.get("nome_startup", "").strip()
-        email_contacto = request.POST.get("email_contacto", "").strip()
-        if not nome_startup or not email_contacto:
-            messages.error(request, "Nome da startup e email são obrigatórios.")
-            return redirect("startups:candidatura_publica", token=token)
-
-        candidatura = Candidatura.objects.create(
-            formulario=formulario,
-            nome_startup=nome_startup,
-            email_contacto=email_contacto,
-        )
+        candidatura = Candidatura.objects.create(formulario=formulario)
         for campo in formulario.campos.all():
             valor = request.POST.get(f"campo_{campo.id}", "")
             if campo.obrigatorio and not valor.strip():

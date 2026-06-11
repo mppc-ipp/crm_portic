@@ -22,22 +22,70 @@ def is_utilizador_comum(user) -> bool:
 
 
 def get_login_redirect_url(user) -> str:
-    if is_utilizador_comum(user):
-        return "/espacos/"
-    if user.has_perm("dashboard.view_dashboard"):
+    if user.has_perm("dashboard.view_dashboard") or is_admin_geral(user):
         return "/dashboard/"
-    if user.has_perm("espacos.view_sala"):
-        return "/espacos/"
-    return "/admin/"
+    if user.has_perm("empresas.view_empresa"):
+        return "/empresas/"
+    if user.has_perm("startups.view_startup"):
+        return "/startups/"
+    if user.has_perm("projetos.view_projeto"):
+        return "/projetos/"
+    if user.has_perm("administrador.gerir_utilizadores"):
+        return "/administrador/"
+    return "/dashboard/"
 
 
 MODULE_PERMISSIONS = {
     "empresas": "empresas.view_empresa",
     "startups": "startups.view_startup",
     "projetos": "projetos.view_projeto",
-    "espacos": "espacos.view_sala",
     "dashboard": "dashboard.view_dashboard",
     "administrador": "administrador.gerir_utilizadores",
+}
+
+# Permissões granulares expostas na UI de administração
+PERMISSION_CATALOG = {
+    "dashboard": {
+        "label": "Dashboard",
+        "permissions": [
+            ("dashboard.view_dashboard", "Ver dashboard"),
+            ("dashboard.gerir_eventos", "Gerir eventos"),
+        ],
+    },
+    "empresas": {
+        "label": "Empresas",
+        "permissions": [
+            ("empresas.view_empresa", "Ver empresas"),
+            ("empresas.add_empresa", "Criar empresas"),
+            ("empresas.change_empresa", "Editar empresas"),
+            ("empresas.delete_empresa", "Eliminar empresas"),
+        ],
+    },
+    "startups": {
+        "label": "Startups",
+        "permissions": [
+            ("startups.view_startup", "Ver startups"),
+            ("startups.gerir_formularios_candidatura", "Gerir formulários de candidatura"),
+            ("startups.ver_candidaturas", "Ver candidaturas"),
+            ("startups.alterar_estado_candidatura", "Alterar estado de candidatura"),
+            ("startups.classificar_candidatura", "Classificar candidatura"),
+        ],
+    },
+    "projetos": {
+        "label": "Projetos",
+        "permissions": [
+            ("projetos.view_projeto", "Ver projetos"),
+            ("projetos.add_projeto", "Criar projetos"),
+            ("projetos.change_projeto", "Editar projetos"),
+            ("projetos.delete_projeto", "Eliminar projetos"),
+        ],
+    },
+    "administrador": {
+        "label": "Administração",
+        "permissions": [
+            ("administrador.gerir_utilizadores", "Gerir utilizadores e permissões"),
+        ],
+    },
 }
 
 
@@ -46,6 +94,10 @@ def user_can_access_module(user, module: str) -> bool:
         return True
     perm = MODULE_PERMISSIONS.get(module)
     return bool(perm and user.has_perm(perm))
+
+
+def pode_gerir_utilizadores(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("administrador.gerir_utilizadores")
 
 
 class ModulePermissionMixin(LoginRequiredMixin, PermissionRequiredMixin):

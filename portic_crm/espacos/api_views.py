@@ -33,6 +33,24 @@ from portic_crm.espacos.serializers import (
 from portic_crm.espacos.services import reservas as svc
 
 
+def _modulo_from_request(request) -> str:
+    path = request.path.rstrip("/")
+    if "reservas-viatura" in path or "historico-viatura" in path or "auditoria-viatura" in path:
+        return ModuloEspaco.VIATURA
+    if "estatisticas-viatura" in path or "localizacoes-viatura" in path:
+        return ModuloEspaco.VIATURA
+    if "/viaturas/" in path or path.endswith("/viaturas"):
+        return ModuloEspaco.VIATURA
+    return ModuloEspaco.SALA
+
+
+def _pedidos_queryset(modulo=None):
+    qs = PedidoReserva.objects.prefetch_related("ocorrencias__sala", "ocorrencias__viatura", "utilizador")
+    if modulo:
+        qs = qs.filter(modulo=modulo)
+    return qs
+
+
 class ConfigModulosAPIView(APIView):
     permission_classes = []
 
@@ -102,9 +120,10 @@ class MinhasReservasAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        modulo = _modulo_from_request(request)
         pedidos = (
-            PedidoReserva.objects.filter(utilizador=request.user)
-            .prefetch_related("ocorrencias__sala")
+            PedidoReserva.objects.filter(utilizador=request.user, modulo=modulo)
+            .prefetch_related("ocorrencias__sala", "ocorrencias__viatura")
             .order_by("-created_at")
         )
         return Response([pedido_frontend(p) for p in pedidos])
@@ -180,7 +199,8 @@ class AdminReservasListAPIView(APIView):
         if not (is_admin_geral(request.user) or request.user.has_perm("espacos.aprovar_reserva")):
             return Response(status=403)
         status_filter = request.query_params.get("status", "PENDENTE")
-        qs = PedidoReserva.objects.prefetch_related("ocorrencias__sala", "utilizador")
+        modulo = _modulo_from_request(request)
+        qs = _pedidos_queryset(modulo)
         if status_filter:
             qs = qs.filter(status=status_filter)
         return Response([pedido_frontend(p, include_user=True) for p in qs.order_by("-created_at")[:100]])
@@ -210,6 +230,30 @@ class AdminSalasListAPIView(APIView):
         return Response(SalaSerializer(qs, many=True, context={"request": request}).data)
 
 
+class AdminViaturasListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _admin_ok(request.user):
+            return Response(status=403)
+        if not svc.get_config_modulos().modulo_viaturas_ativo:
+            return Response([])
+        qs = Viatura.objects.filter(ativo=True).select_related("unidade").order_by("nome")
+        return Response(ViaturaSerializer(qs, many=True, context={"request": request}).data)
+
+
+class AdminViaturaDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if not _admin_ok(request.user):
+            return Response(status=403)
+        viatura = get_object_or_404(Viatura, pk=pk)
+        viatura.ativo = False
+        viatura.save(update_fields=["ativo"])
+        return Response(status=204)
+
+
 class AdminSalaDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -229,7 +273,8 @@ class AdminLocalizacoesAPIView(APIView):
         if not _admin_ok(request.user):
             return Response(status=403)
         unidade_id = request.query_params.get("unidadeId")
-        qs = Localizacao.objects.filter(modulo=ModuloEspaco.SALA)
+        modulo = _modulo_from_request(request)
+        qs = Localizacao.objects.filter(modulo=modulo)
         if unidade_id:
             qs = qs.filter(unidade_id=unidade_id)
         return Response(LocalizacaoSerializer(qs.order_by("-ativo", "nome"), many=True).data)
@@ -244,7 +289,7 @@ class AdminLocalizacoesAPIView(APIView):
         loc = Localizacao.objects.create(
             unidade_id=unidade_id,
             nome=nome,
-            modulo=ModuloEspaco.SALA,
+            modulo=_modulo_from_request(request),
             ativo=True,
         )
         return Response(LocalizacaoSerializer(loc).data, status=201)
@@ -277,11 +322,10 @@ class AdminHistoricoAPIView(APIView):
     def get(self, request):
         if not _admin_ok(request.user):
             return Response(status=403)
+        modulo = _modulo_from_request(request)
         qs = (
-            PedidoReserva.objects.filter(
-                status__in=[StatusPedidoReserva.APROVADO, StatusPedidoReserva.REJEITADO]
-            )
-            .prefetch_related("ocorrencias__sala", "utilizador")
+            _pedidos_queryset(modulo)
+            .filter(status__in=[StatusPedidoReserva.APROVADO, StatusPedidoReserva.REJEITADO])
             .order_by("-created_at")[:200]
         )
         return Response([pedido_frontend(p, include_user=True) for p in qs])
@@ -293,7 +337,12 @@ class AdminAuditoriaAPIView(APIView):
     def get(self, request):
         if not _admin_ok(request.user):
             return Response(status=403)
-        qs = AuditoriaEspacos.objects.select_related("utilizador", "unidade").order_by("-criado_em")[:200]
+        modulo = _modulo_from_request(request)
+        qs = (
+            AuditoriaEspacos.objects.filter(modulo=modulo)
+            .select_related("utilizador", "unidade")
+            .order_by("-criado_em")[:200]
+        )
         return Response(
             [
                 {
@@ -347,9 +396,12 @@ class AdminEstatisticasAPIView(APIView):
             return Response(status=403)
         from django.db.models import Count
 
+        modulo = _modulo_from_request(request)
         por_modulo = (
-            PedidoReserva.objects.values("modulo")
+            PedidoReserva.objects.filter(modulo=modulo)
+            .values("modulo")
             .annotate(total=Count("id"))
             .order_by("modulo")
         )
-        return Response({"por_modulo": list(por_modulo), "total_pedidos": PedidoReserva.objects.count()})
+        total = PedidoReserva.objects.filter(modulo=modulo).count()
+        return Response({"por_modulo": list(por_modulo), "total_pedidos": total, "modulo": modulo})

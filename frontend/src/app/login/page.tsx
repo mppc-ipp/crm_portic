@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { login } from "@/lib/api";
+import { rotaAposLogin } from "@/lib/routes";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,17 +18,7 @@ export default function LoginPage() {
     setErro("");
     try {
       const { user } = await login(email, password);
-      if (user.modulos.espacos && !user.admin_geral && !user.modulos.dashboard) {
-        router.push("/minhas-reservas");
-      } else if (user.modulos.dashboard) {
-        router.push("/dashboard");
-      } else if (user.modulos.projetos) {
-        router.push("/projetos");
-      } else if (user.modulos.espacos) {
-        router.push("/minhas-reservas");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(rotaAposLogin(user.modulos, user.admin_geral));
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao entrar");
     } finally {

@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
+from django.utils.text import slugify
 
 from portic_crm.core.models import HistoricoEntrada, TimeStampedModel
 
@@ -11,14 +12,6 @@ class EstadoResidencia(models.TextChoices):
     CANDIDATA = "CANDIDATA", "Candidata"
     INCUBADA = "INCUBADA", "Incubada"
     SAIDA = "SAIDA", "Saída"
-
-
-class EstadoCandidatura(models.TextChoices):
-    SUBMETIDA = "SUBMETIDA", "Submetida"
-    EM_ANALISE = "EM_ANALISE", "Em análise"
-    APROVADA = "APROVADA", "Aprovada"
-    REJEITADA = "REJEITADA", "Rejeitada"
-    INCUBADA = "INCUBADA", "Incubada"
 
 
 class TipoCampoFormulario(models.TextChoices):
@@ -78,6 +71,92 @@ class Startup(TimeStampedModel):
         return self.nome
 
 
+class TipoHistoricoCandidatura(TimeStampedModel):
+    codigo = models.CharField(max_length=40, unique=True)
+    nome = models.CharField(max_length=120)
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ordem", "nome"]
+        verbose_name = "tipo de histórico de candidatura"
+        verbose_name_plural = "tipos de histórico de candidatura"
+
+    def __str__(self):
+        return self.nome
+
+    @classmethod
+    def gerar_codigo(cls, nome: str, excluir_pk=None) -> str:
+        base = slugify(nome).upper().replace("-", "_") or "TIPO"
+        codigo = base[:40]
+        qs = cls.objects.filter(codigo=codigo)
+        if excluir_pk:
+            qs = qs.exclude(pk=excluir_pk)
+        if not qs.exists():
+            return codigo
+        n = 2
+        while True:
+            suffix = f"_{n}"
+            candidato = f"{base[: 40 - len(suffix)]}{suffix}"
+            qs = cls.objects.filter(codigo=candidato)
+            if excluir_pk:
+                qs = qs.exclude(pk=excluir_pk)
+            if not qs.exists():
+                return candidato
+            n += 1
+
+    @classmethod
+    def nome_por_codigo(cls, codigo: str) -> str | None:
+        tipo = cls.objects.filter(codigo=codigo).first()
+        return tipo.nome if tipo else None
+
+
+class StatusCandidatura(TimeStampedModel):
+    codigo = models.CharField(max_length=40, unique=True)
+    nome = models.CharField(max_length=120)
+    cor = models.CharField(max_length=7, default="#6B7280")
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ordem", "nome"]
+        verbose_name = "estado de candidatura"
+        verbose_name_plural = "estados de candidatura"
+
+    def __str__(self):
+        return self.nome
+
+    @classmethod
+    def gerar_codigo(cls, nome: str, excluir_pk=None) -> str:
+        base = slugify(nome).upper().replace("-", "_") or "ESTADO"
+        codigo = base[:40]
+        qs = cls.objects.filter(codigo=codigo)
+        if excluir_pk:
+            qs = qs.exclude(pk=excluir_pk)
+        if not qs.exists():
+            return codigo
+        n = 2
+        while True:
+            suffix = f"_{n}"
+            candidato = f"{base[: 40 - len(suffix)]}{suffix}"
+            qs = cls.objects.filter(codigo=candidato)
+            if excluir_pk:
+                qs = qs.exclude(pk=excluir_pk)
+            if not qs.exists():
+                return candidato
+            n += 1
+
+    @classmethod
+    def nome_por_codigo(cls, codigo: str) -> str | None:
+        status = cls.objects.filter(codigo=codigo).first()
+        return status.nome if status else None
+
+    @classmethod
+    def cor_por_codigo(cls, codigo: str) -> str:
+        status = cls.objects.filter(codigo=codigo).first()
+        return status.cor if status else "#6B7280"
+
+
 class FormularioCandidatura(TimeStampedModel):
     edicao = models.ForeignKey(
         Edicao,
@@ -130,14 +209,10 @@ class Candidatura(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="candidaturas",
     )
-    estado = models.CharField(
-        max_length=20,
-        choices=EstadoCandidatura.choices,
-        default=EstadoCandidatura.SUBMETIDA,
-    )
+    estado = models.CharField(max_length=40, default="SUBMETIDA")
     submetida_em = models.DateTimeField(auto_now_add=True)
-    nome_startup = models.CharField(max_length=255)
-    email_contacto = models.EmailField()
+    nome_startup = models.CharField(max_length=255, blank=True)
+    email_contacto = models.EmailField(blank=True)
     startup = models.ForeignKey(
         Startup,
         on_delete=models.SET_NULL,
@@ -154,7 +229,15 @@ class Candidatura(TimeStampedModel):
         verbose_name_plural = "candidaturas"
 
     def __str__(self):
-        return f"{self.nome_startup} — {self.get_estado_display()}"
+        nome_estado = StatusCandidatura.nome_por_codigo(self.estado) or self.estado
+        primeira = self.respostas.order_by("campo__ordem").first()
+        if primeira and primeira.valor.strip():
+            rotulo = primeira.valor.strip()[:80]
+        elif self.nome_startup:
+            rotulo = self.nome_startup
+        else:
+            rotulo = self.submetida_em.strftime("Candidatura · %d/%m/%Y %H:%M")
+        return f"{rotulo} — {nome_estado}"
 
 
 class RespostaCampo(models.Model):

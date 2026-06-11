@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { apiFetch, clearAuthToken, type UserSession } from "@/lib/api";
+import { rotaAposLogin } from "@/lib/routes";
 
 export default function HomePage() {
   const router = useRouter();
@@ -14,11 +15,7 @@ export default function HomePage() {
 
     apiFetch<UserSession>("/api/auth/me", { redirectOnUnauthorized: false })
       .then((user) => {
-        if (user.modulos.dashboard) router.replace("/dashboard");
-        else if (user.modulos.projetos) router.replace("/projetos");
-        else if (user.modulos.empresas) router.replace("/empresas");
-        else if (user.modulos.espacos) router.replace("/minhas-reservas");
-        else router.replace("/dashboard");
+        router.replace(rotaAposLogin(user.modulos, user.admin_geral));
       })
       .catch(() => {
         clearAuthToken();

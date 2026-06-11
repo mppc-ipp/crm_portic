@@ -9,12 +9,26 @@ from portic_crm.startups.models import (
     FormularioCandidatura,
     RespostaCampo,
     Startup,
+    StatusCandidatura,
+    TipoHistoricoCandidatura,
 )
 
 
 class CampoFormularioInline(admin.TabularInline):
     model = CampoFormulario
     extra = 1
+
+
+@admin.register(TipoHistoricoCandidatura)
+class TipoHistoricoCandidaturaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "codigo", "ordem", "ativo")
+    list_filter = ("ativo",)
+
+
+@admin.register(StatusCandidatura)
+class StatusCandidaturaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "codigo", "cor", "ordem", "ativo")
+    list_filter = ("ativo",)
 
 
 @admin.register(Edicao)
