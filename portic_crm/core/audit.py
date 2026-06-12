@@ -82,6 +82,16 @@ class AcaoAuditoria:
     TIPO_EVENTO_EDITADO = "TIPO_EVENTO_EDITADO"
     TIPO_EVENTO_REMOVIDO = "TIPO_EVENTO_REMOVIDO"
 
+    # Marketing
+    MKT_PUBLICACAO_CRIADA = "MKT_PUB_CRIADA"
+    MKT_PUBLICACAO_EDITADA = "MKT_PUB_EDITADA"
+    MKT_PUBLICACAO_ELIMINADA = "MKT_PUB_DEL"
+    MKT_PUBLICACAO_PUBLICADA = "MKT_PUB_POST"
+    MKT_PUBLICACAO_AGENDADA = "MKT_PUB_AGEND"
+    MKT_PUBLICACAO_CANCELADA = "MKT_PUB_CANCEL"
+    MKT_CONTA_LIGADA = "MKT_CONTA_LIG"
+    MKT_CONTA_DESLIGADA = "MKT_CONTA_DEL"
+
 
 ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.LOGIN: "Login efectuado",
@@ -138,6 +148,14 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.TIPO_EVENTO_CRIADO: "Tipo de evento criado",
     AcaoAuditoria.TIPO_EVENTO_EDITADO: "Tipo de evento editado",
     AcaoAuditoria.TIPO_EVENTO_REMOVIDO: "Tipo de evento removido/desactivado",
+    AcaoAuditoria.MKT_PUBLICACAO_CRIADA: "Publicação de marketing criada",
+    AcaoAuditoria.MKT_PUBLICACAO_EDITADA: "Publicação de marketing editada",
+    AcaoAuditoria.MKT_PUBLICACAO_ELIMINADA: "Publicação de marketing eliminada",
+    AcaoAuditoria.MKT_PUBLICACAO_PUBLICADA: "Publicação de marketing publicada",
+    AcaoAuditoria.MKT_PUBLICACAO_AGENDADA: "Publicação de marketing agendada",
+    AcaoAuditoria.MKT_PUBLICACAO_CANCELADA: "Agendamento de marketing cancelado",
+    AcaoAuditoria.MKT_CONTA_LIGADA: "Conta social ligada",
+    AcaoAuditoria.MKT_CONTA_DESLIGADA: "Conta social desligada",
 }
 
 

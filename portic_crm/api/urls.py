@@ -32,6 +32,7 @@ from portic_crm.empresas.api_views import (
     TipoInteracaoViewSet,
 )
 from portic_crm.espacos.api_urls import urlpatterns as espacos_urls
+from portic_crm.marketing.api_urls import urlpatterns as marketing_urls
 from portic_crm.projetos.api_views import ObjetivoViewSet, ProjetoViewSet, SecaoViewSet
 from portic_crm.projetos.projetos_api_urls import urlpatterns as projetos_extra_urls
 from portic_crm.startups.api_views import (
@@ -112,4 +113,4 @@ urlpatterns = [
     path("admin/sistema", AdminSistemaAPIView.as_view()),
     path("auth/refresh", TokenRefreshView.as_view()),
     path("", include(router.urls)),
-] + projetos_extra_urls + espacos_urls
+] + projetos_extra_urls + espacos_urls + marketing_urls

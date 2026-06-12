@@ -173,7 +173,10 @@ def sincronizar_notificacoes_sistema(user):
             )
 
     if user_can_access_module(user, "projetos"):
+        from portic_crm.projetos.services import queryset_projetos_visiveis
+
         for obj in Objetivo.objects.filter(
+            secao__projeto__in=queryset_projetos_visiveis(user),
             data_limite__isnull=False,
             data_limite__lte=hoje + timedelta(days=7),
             data_limite__gte=hoje - timedelta(days=1),

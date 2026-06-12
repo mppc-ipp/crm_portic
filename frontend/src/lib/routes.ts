@@ -7,7 +7,14 @@ export const PUBLIC_ROUTES = new Set([
   "/esqueci-senha/redefinir",
 ]);
 
-const CRM_PREFIXES = ["/dashboard", "/empresas", "/startups", "/projetos", "/administrador"];
+const CRM_PREFIXES = [
+  "/dashboard",
+  "/empresas",
+  "/startups",
+  "/projetos",
+  "/marketing",
+  "/administrador",
+];
 
 export function isPublicRoute(path: string): boolean {
   if (PUBLIC_ROUTES.has(path)) return true;
@@ -29,6 +36,7 @@ export function rotaAposLogin(modulos: Record<string, boolean>, adminGeral: bool
   if (modulos.empresas) return "/empresas";
   if (modulos.startups) return "/startups";
   if (modulos.projetos) return "/projetos";
+  if (modulos.marketing) return "/marketing";
   if (modulos.administrador) return "/administrador";
   return "/dashboard";
 }
@@ -42,6 +50,7 @@ const ROTA_MODULO: Array<{ prefix: string; modulo: string }> = [
   { prefix: "/empresas", modulo: "empresas" },
   { prefix: "/startups", modulo: "startups" },
   { prefix: "/projetos", modulo: "projetos" },
+  { prefix: "/marketing", modulo: "marketing" },
   { prefix: "/administrador", modulo: "administrador" },
 ];
 

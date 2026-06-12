@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "portic_crm.espacos",
     "portic_crm.dashboard",
     "portic_crm.administrador",
+    "portic_crm.marketing",
 ]
 
 MIDDLEWARE = [
@@ -158,3 +159,44 @@ CORS_ALLOW_CREDENTIALS = True
 API_PUBLIC_URL = os.environ.get("API_PUBLIC_URL", "http://localhost:8000")
 WEB_URL = os.environ.get("WEB_URL", "http://localhost:3000")
 RESERVA_ADMIN_EMAIL = os.environ.get("RESERVA_ADMIN_EMAIL", "admin@portic.local")
+
+# Celery
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+_broker = os.environ.get("CELERY_BROKER_URL", "")
+if _broker.startswith("redis://"):
+    _cache_url = _broker.rsplit("/", 1)[0] + "/1"
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _cache_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
+# Marketing / redes sociais
+META_APP_ID = os.environ.get("META_APP_ID", "")
+META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
+META_REDIRECT_URI = os.environ.get(
+    "META_REDIRECT_URI",
+    f"{API_PUBLIC_URL}/api/marketing/oauth/meta/callback",
+)
+LINKEDIN_CLIENT_ID = os.environ.get("LINKEDIN_CLIENT_ID", "")
+LINKEDIN_CLIENT_SECRET = os.environ.get("LINKEDIN_CLIENT_SECRET", "")
+LINKEDIN_REDIRECT_URI = os.environ.get(
+    "LINKEDIN_REDIRECT_URI",
+    f"{API_PUBLIC_URL}/api/marketing/oauth/linkedin/callback",
+)
+MARKETING_MEDIA_PUBLIC_BASE_URL = os.environ.get("MARKETING_MEDIA_PUBLIC_BASE_URL", API_PUBLIC_URL)
+MARKETING_DRY_RUN = os.environ.get("MARKETING_DRY_RUN", "False").lower() in ("true", "1", "yes")
+MARKETING_PUBLISH_RATE_LIMIT = int(os.environ.get("MARKETING_PUBLISH_RATE_LIMIT", "30"))

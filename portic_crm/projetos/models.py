@@ -21,6 +21,13 @@ class EstadoObjetivo(models.TextChoices):
 class Projeto(TimeStampedModel):
     nome = models.CharField(max_length=255)
     resumo = models.TextField(blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="projetos_criados",
+    )
     responsavel = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

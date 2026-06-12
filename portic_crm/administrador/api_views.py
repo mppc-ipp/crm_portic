@@ -349,6 +349,19 @@ def _serialize_sistema(cfg: ConfiguracaoSistema) -> dict:
     jwt = dj_settings.SIMPLE_JWT
     db = dj_settings.DATABASES.get("default", {})
     validadores = [v["NAME"].rsplit(".", 1)[-1] for v in dj_settings.AUTH_PASSWORD_VALIDATORS]
+    api_base = dj_settings.API_PUBLIC_URL.rstrip("/")
+    meta_redirect_default = (
+        dj_settings.META_REDIRECT_URI or f"{api_base}/api/marketing/oauth/meta/callback"
+    )
+    linkedin_redirect_default = (
+        dj_settings.LINKEDIN_REDIRECT_URI or f"{api_base}/api/marketing/oauth/linkedin/callback"
+    )
+    media_base_default = dj_settings.MARKETING_MEDIA_PUBLIC_BASE_URL or api_base
+    dry_run_efectivo = (
+        cfg.marketing_dry_run
+        if cfg.marketing_dry_run is not None
+        else dj_settings.MARKETING_DRY_RUN
+    )
     return {
         "versao": getattr(dj_settings, "CRM_VERSION", "0.1.0"),
         "ambiente": "desenvolvimento" if dj_settings.DEBUG else "producao",
@@ -383,7 +396,49 @@ def _serialize_sistema(cfg: ConfiguracaoSistema) -> dict:
                 "docker compose exec db pg_dump -U portic portic_crm > backup_$(date +%Y%m%d).sql"
             ),
         },
+        "marketing": {
+            "meta_app_id": cfg.marketing_meta_app_id,
+            "meta_app_secret_configured": bool(cfg.marketing_meta_app_secret),
+            "meta_redirect_uri": cfg.marketing_meta_redirect_uri or meta_redirect_default,
+            "linkedin_client_id": cfg.marketing_linkedin_client_id,
+            "linkedin_client_secret_configured": bool(cfg.marketing_linkedin_client_secret),
+            "linkedin_redirect_uri": cfg.marketing_linkedin_redirect_uri or linkedin_redirect_default,
+            "media_public_base_url": cfg.marketing_media_public_base_url or media_base_default,
+            "dry_run": dry_run_efectivo,
+            "configurado_na_bd": bool(
+                cfg.marketing_meta_app_id
+                or cfg.marketing_meta_app_secret
+                or cfg.marketing_linkedin_client_id
+                or cfg.marketing_linkedin_client_secret
+            ),
+        },
     }
+
+
+def _aplicar_marketing_config(cfg: ConfiguracaoSistema, data: dict) -> None:
+    from portic_crm.marketing.services.tokens import encriptar_token
+
+    marketing = data.get("marketing") or {}
+    if "meta_app_id" in marketing:
+        cfg.marketing_meta_app_id = (marketing.get("meta_app_id") or "").strip()
+    if "meta_redirect_uri" in marketing:
+        cfg.marketing_meta_redirect_uri = (marketing.get("meta_redirect_uri") or "").strip()
+    if "linkedin_client_id" in marketing:
+        cfg.marketing_linkedin_client_id = (marketing.get("linkedin_client_id") or "").strip()
+    if "linkedin_redirect_uri" in marketing:
+        cfg.marketing_linkedin_redirect_uri = (marketing.get("linkedin_redirect_uri") or "").strip()
+    if "media_public_base_url" in marketing:
+        cfg.marketing_media_public_base_url = (marketing.get("media_public_base_url") or "").strip()
+    if "dry_run" in marketing:
+        cfg.marketing_dry_run = bool(marketing.get("dry_run"))
+
+    meta_secret = marketing.get("meta_app_secret")
+    if meta_secret and meta_secret not in ("********", "••••••••"):
+        cfg.marketing_meta_app_secret = encriptar_token(str(meta_secret).strip())
+
+    linkedin_secret = marketing.get("linkedin_client_secret")
+    if linkedin_secret and linkedin_secret not in ("********", "••••••••"):
+        cfg.marketing_linkedin_client_secret = encriptar_token(str(linkedin_secret).strip())
 
 
 class AdminSistemaAPIView(AdminPermissionMixin, APIView):
@@ -423,6 +478,8 @@ class AdminSistemaAPIView(AdminPermissionMixin, APIView):
             cfg.notas_manutencao = manutencao["notas"]
         if "politica_seguranca_notas" in manutencao:
             cfg.politica_seguranca_notas = manutencao["politica_seguranca_notas"]
+        if "marketing" in data:
+            _aplicar_marketing_config(cfg, data)
         cfg.save()
         if cfg.backup_ultimo and cfg.backup_ultimo != backup_ultimo_antes:
             registar_auditoria(
@@ -432,9 +489,14 @@ class AdminSistemaAPIView(AdminPermissionMixin, APIView):
                 alvo=cfg,
             )
         else:
+            msg = "Actualizou configuração do sistema"
+            if "marketing" in data:
+                msg = "Actualizou integrações de marketing (redes sociais)"
+            elif "backup" in data or "manutencao" in data:
+                msg = "Actualizou políticas de backup e/ou notas de manutenção do sistema"
             registar_auditoria(
                 AcaoAuditoria.SISTEMA_CONFIG,
-                "Actualizou políticas de backup e/ou notas de manutenção do sistema",
+                msg,
                 actor=request.user,
                 alvo=cfg,
             )

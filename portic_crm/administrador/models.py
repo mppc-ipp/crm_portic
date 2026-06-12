@@ -32,6 +32,18 @@ class ConfiguracaoSistema(models.Model):
         blank=True,
         help_text="Notas internas sobre política de segurança e acessos.",
     )
+    marketing_meta_app_id = models.CharField(max_length=255, blank=True)
+    marketing_meta_app_secret = models.TextField(blank=True)
+    marketing_meta_redirect_uri = models.URLField(blank=True, max_length=500)
+    marketing_linkedin_client_id = models.CharField(max_length=255, blank=True)
+    marketing_linkedin_client_secret = models.TextField(blank=True)
+    marketing_linkedin_redirect_uri = models.URLField(blank=True, max_length=500)
+    marketing_media_public_base_url = models.URLField(blank=True, max_length=500)
+    marketing_dry_run = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Vazio = usar variável de ambiente MARKETING_DRY_RUN.",
+    )
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:

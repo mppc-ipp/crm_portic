@@ -35,7 +35,20 @@ type SistemaInfo = {
     utilizadores_ativos: number;
     comando_backup: string;
   };
+  marketing: {
+    meta_app_id: string;
+    meta_app_secret_configured: boolean;
+    meta_redirect_uri: string;
+    linkedin_client_id: string;
+    linkedin_client_secret_configured: boolean;
+    linkedin_redirect_uri: string;
+    media_public_base_url: string;
+    dry_run: boolean;
+    configurado_na_bd: boolean;
+  };
 };
+
+const SECRET_PLACEHOLDER = "********";
 
 const FREQUENCIAS = [
   { value: "diaria", label: "Diária" },
@@ -61,6 +74,16 @@ export default function SistemaPage() {
     notas: "",
     politica_seguranca_notas: "",
   });
+  const [marketingForm, setMarketingForm] = useState({
+    meta_app_id: "",
+    meta_app_secret: "",
+    meta_redirect_uri: "",
+    linkedin_client_id: "",
+    linkedin_client_secret: "",
+    linkedin_redirect_uri: "",
+    media_public_base_url: "",
+    dry_run: true,
+  });
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -77,6 +100,18 @@ export default function SistemaPage() {
       setManutencaoForm({
         notas: data.manutencao.notas,
         politica_seguranca_notas: data.manutencao.politica_seguranca_notas,
+      });
+      setMarketingForm({
+        meta_app_id: data.marketing.meta_app_id,
+        meta_app_secret: data.marketing.meta_app_secret_configured ? SECRET_PLACEHOLDER : "",
+        meta_redirect_uri: data.marketing.meta_redirect_uri,
+        linkedin_client_id: data.marketing.linkedin_client_id,
+        linkedin_client_secret: data.marketing.linkedin_client_secret_configured
+          ? SECRET_PLACEHOLDER
+          : "",
+        linkedin_redirect_uri: data.marketing.linkedin_redirect_uri,
+        media_public_base_url: data.marketing.media_public_base_url,
+        dry_run: data.marketing.dry_run,
       });
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar");
@@ -95,14 +130,48 @@ export default function SistemaPage() {
     setErro("");
     setOk(false);
     try {
+      const marketingPayload = {
+        meta_app_id: marketingForm.meta_app_id,
+        meta_redirect_uri: marketingForm.meta_redirect_uri,
+        linkedin_client_id: marketingForm.linkedin_client_id,
+        linkedin_redirect_uri: marketingForm.linkedin_redirect_uri,
+        media_public_base_url: marketingForm.media_public_base_url,
+        dry_run: marketingForm.dry_run,
+      } as Record<string, string | boolean>;
+      if (
+        marketingForm.meta_app_secret &&
+        marketingForm.meta_app_secret !== SECRET_PLACEHOLDER
+      ) {
+        marketingPayload.meta_app_secret = marketingForm.meta_app_secret;
+      }
+      if (
+        marketingForm.linkedin_client_secret &&
+        marketingForm.linkedin_client_secret !== SECRET_PLACEHOLDER
+      ) {
+        marketingPayload.linkedin_client_secret = marketingForm.linkedin_client_secret;
+      }
+
       const data = await apiFetch<SistemaInfo>("/api/admin/sistema", {
         method: "PATCH",
         body: JSON.stringify({
           backup: backupForm,
           manutencao: manutencaoForm,
+          marketing: marketingPayload,
         }),
       });
       setInfo(data);
+      setMarketingForm({
+        meta_app_id: data.marketing.meta_app_id,
+        meta_app_secret: data.marketing.meta_app_secret_configured ? SECRET_PLACEHOLDER : "",
+        meta_redirect_uri: data.marketing.meta_redirect_uri,
+        linkedin_client_id: data.marketing.linkedin_client_id,
+        linkedin_client_secret: data.marketing.linkedin_client_secret_configured
+          ? SECRET_PLACEHOLDER
+          : "",
+        linkedin_redirect_uri: data.marketing.linkedin_redirect_uri,
+        media_public_base_url: data.marketing.media_public_base_url,
+        dry_run: data.marketing.dry_run,
+      });
       setOk(true);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao guardar");
@@ -253,6 +322,115 @@ export default function SistemaPage() {
             >
               Registar backup efectuado agora
             </button>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-white p-5">
+          <h3 className="mb-1 font-semibold">Integrações de marketing (redes sociais)</h3>
+          <p className="mb-4 text-sm text-slate-600">
+            Chaves da Meta (Facebook/Instagram) e LinkedIn. Guardadas na base de dados e
+            utilizadas pelo módulo Marketing. Deixe o secret em branco para manter o actual.
+          </p>
+          {info.marketing.configurado_na_bd && (
+            <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+              Integrações configuradas na base de dados (têm prioridade sobre o ficheiro .env).
+            </p>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              Meta App ID
+              <input
+                value={marketingForm.meta_app_id}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, meta_app_id: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder="ID da app em developers.facebook.com"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              Meta App Secret
+              <input
+                type="password"
+                value={marketingForm.meta_app_secret}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, meta_app_secret: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder={
+                  info.marketing.meta_app_secret_configured
+                    ? "******** (preencha só para alterar)"
+                    : "App Secret da Meta"
+                }
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              Meta Redirect URI
+              <input
+                value={marketingForm.meta_redirect_uri}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, meta_redirect_uri: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              LinkedIn Client ID
+              <input
+                value={marketingForm.linkedin_client_id}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, linkedin_client_id: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              LinkedIn Client Secret
+              <input
+                type="password"
+                value={marketingForm.linkedin_client_secret}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, linkedin_client_secret: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder={
+                  info.marketing.linkedin_client_secret_configured
+                    ? "******** (preencha só para alterar)"
+                    : "Client Secret do LinkedIn"
+                }
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              LinkedIn Redirect URI
+              <input
+                value={marketingForm.linkedin_redirect_uri}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, linkedin_redirect_uri: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              URL pública de media (Instagram)
+              <input
+                value={marketingForm.media_public_base_url}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, media_public_base_url: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder="https://seu-dominio.com"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={marketingForm.dry_run}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, dry_run: e.target.checked }))
+                }
+              />
+              Modo simulação (dry run) — não publica nas redes reais
+            </label>
           </div>
         </section>
 

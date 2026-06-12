@@ -17,8 +17,10 @@ from portic_crm.projetos.serializers import (
 )
 from portic_crm.projetos.services import (
     preparar_projeto_para_leitura,
+    queryset_projetos_visiveis,
     registar_atividade,
     sincronizar_membros,
+    usuario_pode_ver_projeto,
 )
 
 class ProjetoPermissionMixin:
@@ -45,7 +47,9 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
             )
             .order_by("ordem", "id")
         )
-        return Projeto.objects.select_related("responsavel").prefetch_related(
+        return queryset_projetos_visiveis(self.request.user).select_related(
+            "responsavel", "criado_por"
+        ).prefetch_related(
             "atividades",
             "campos_personalizados",
             "membros__utilizador",
@@ -107,7 +111,10 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
             raise ValidationError({"membros_emails": exc.messages})
 
     def perform_create(self, serializer):
-        projeto = serializer.save(responsavel=self.request.user)
+        projeto = serializer.save(
+            responsavel=self.request.user,
+            criado_por=self.request.user,
+        )
         membros_emails = self.request.data.get("membros_emails")
         if isinstance(membros_emails, list):
             self._sincronizar_membros_seguro(projeto, membros_emails)
@@ -145,6 +152,13 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
     queryset = Secao.objects.prefetch_related("objetivos").all()
     serializer_class = SecaoSerializer
 
+    def get_queryset(self):
+        if not self.check_projeto_perm(self.request):
+            return Secao.objects.none()
+        return Secao.objects.filter(
+            projeto__in=queryset_projetos_visiveis(self.request.user)
+        ).prefetch_related("objetivos")
+
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return SecaoWriteSerializer
@@ -152,6 +166,8 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         projeto = serializer.validated_data["projeto"]
+        if not usuario_pode_ver_projeto(self.request.user, projeto):
+            raise ValidationError({"projeto": "Sem permissão para este projeto."})
         nome = serializer.validated_data["nome"].strip()
         if Secao.objects.filter(projeto=projeto, nome__iexact=nome).exists():
             raise ValidationError({"nome": "Já existe uma secção com este nome neste projeto."})
@@ -194,6 +210,13 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
 
 class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
     queryset = Objetivo.objects.select_related("responsavel", "secao__projeto").all()
+
+    def get_queryset(self):
+        if not self.check_projeto_perm(self.request):
+            return Objetivo.objects.none()
+        return Objetivo.objects.filter(
+            secao__projeto__in=queryset_projetos_visiveis(self.request.user)
+        ).select_related("responsavel", "secao__projeto")
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):

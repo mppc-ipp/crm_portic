@@ -2,7 +2,9 @@ import re
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
+from portic_crm.core.permissions import is_admin_geral
 from portic_crm.projetos.models import AtividadeProjeto, MembroProjeto, Objetivo, Projeto
 
 User = get_user_model()
@@ -12,6 +14,33 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _normalizar_email(email: str) -> str:
     return email.strip().lower()
+
+
+def _email_utilizador(user) -> str:
+    return _normalizar_email(user.email or "")
+
+
+def usuario_pode_ver_projeto(user, projeto: Projeto) -> bool:
+    if is_admin_geral(user):
+        return True
+    if projeto.criado_por_id == user.pk:
+        return True
+    email = _email_utilizador(user)
+    if not email:
+        return False
+    return projeto.membros.filter(
+        Q(utilizador_id=user.pk) | Q(email__iexact=email)
+    ).exists()
+
+
+def queryset_projetos_visiveis(user):
+    if is_admin_geral(user):
+        return Projeto.objects.all()
+    email = _email_utilizador(user)
+    filtro = Q(criado_por=user)
+    if email:
+        filtro |= Q(membros__utilizador=user) | Q(membros__email__iexact=email)
+    return Projeto.objects.filter(filtro).distinct()
 
 
 def _validar_emails(emails: list) -> list[str]:

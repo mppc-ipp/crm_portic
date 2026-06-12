@@ -19,6 +19,7 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
     { href: "/empresas", label: "Empresas", show: adminGeral || Boolean(modulos.empresas) },
     { href: "/startups", label: "Startups", show: adminGeral || Boolean(modulos.startups) },
     { href: "/projetos", label: "Projetos", show: adminGeral || Boolean(modulos.projetos) },
+    { href: "/marketing", label: "Marketing", show: adminGeral || Boolean(modulos.marketing) },
     { href: "/administrador", label: "Administração", show: podeAdmin },
   ];
 

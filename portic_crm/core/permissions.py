@@ -30,6 +30,8 @@ def get_login_redirect_url(user) -> str:
         return "/startups/"
     if user.has_perm("projetos.view_projeto"):
         return "/projetos/"
+    if user.has_perm("marketing.view_publicacao"):
+        return "/marketing/"
     if user.has_perm("administrador.gerir_utilizadores"):
         return "/administrador/"
     return "/dashboard/"
@@ -41,6 +43,7 @@ MODULE_PERMISSIONS = {
     "projetos": "projetos.view_projeto",
     "dashboard": "dashboard.view_dashboard",
     "administrador": "administrador.gerir_utilizadores",
+    "marketing": "marketing.view_publicacao",
 }
 
 # Permissões granulares expostas na UI de administração
@@ -84,6 +87,17 @@ PERMISSION_CATALOG = {
         "label": "Administração",
         "permissions": [
             ("administrador.gerir_utilizadores", "Gerir utilizadores e permissões"),
+        ],
+    },
+    "marketing": {
+        "label": "Marketing",
+        "permissions": [
+            ("marketing.view_publicacao", "Ver publicações"),
+            ("marketing.add_publicacao", "Criar publicações"),
+            ("marketing.change_publicacao", "Editar publicações"),
+            ("marketing.delete_publicacao", "Eliminar publicações"),
+            ("marketing.publicar", "Publicar e agendar"),
+            ("marketing.gerir_contas", "Ligar contas sociais"),
         ],
     },
 }

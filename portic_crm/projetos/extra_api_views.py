@@ -32,11 +32,28 @@ from portic_crm.projetos.serializers import (
     VistaGuardadaSerializer,
     VistaGuardadaWriteSerializer,
 )
-from portic_crm.projetos.services import nome_responsavel_objetivo, registar_atividade
+from portic_crm.projetos.services import (
+    nome_responsavel_objetivo,
+    queryset_projetos_visiveis,
+    registar_atividade,
+    usuario_pode_ver_projeto,
+)
 
 
 def _projeto_perm(user):
     return is_admin_geral(user) or user.has_perm("projetos.view_projeto")
+
+
+def _projeto_visivel(user, projeto_id):
+    return get_object_or_404(queryset_projetos_visiveis(user), pk=projeto_id)
+
+
+def _objetivo_visivel(user, objetivo_id):
+    return get_object_or_404(
+        Objetivo.objects.select_related("secao__projeto"),
+        pk=objetivo_id,
+        secao__projeto__in=queryset_projetos_visiveis(user),
+    )
 
 
 class ObjetivoDetailAPIView(APIView):
@@ -45,7 +62,8 @@ class ObjetivoDetailAPIView(APIView):
     def get(self, request, pk):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        obj = get_object_or_404(
+        obj = _objetivo_visivel(request.user, pk)
+        obj = (
             Objetivo.objects.select_related("responsavel", "secao__projeto")
             .prefetch_related(
                 "subtarefas",
@@ -53,8 +71,8 @@ class ObjetivoDetailAPIView(APIView):
                 "dependencias_entrada__predecessora",
                 "dependencias_saida__sucessora",
                 "valores_campos__campo",
-            ),
-            pk=pk,
+            )
+            .get(pk=obj.pk)
         )
         return Response(ObjetivoSerializer(obj).data)
 
@@ -65,13 +83,14 @@ class SubtarefaListCreateAPIView(APIView):
     def get(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
         qs = Subtarefa.objects.filter(objetivo_id=objetivo_id).order_by("ordem")
         return Response(SubtarefaSerializer(qs, many=True).data)
 
     def post(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        objetivo = get_object_or_404(Objetivo.objects.select_related("secao__projeto"), pk=objetivo_id)
+        objetivo = _objetivo_visivel(request.user, objetivo_id)
         data = {**request.data, "objetivo": objetivo_id}
         ser = SubtarefaWriteSerializer(data=data)
         ser.is_valid(raise_exception=True)
@@ -93,6 +112,8 @@ class SubtarefaDetailAPIView(APIView):
         if not _projeto_perm(request.user):
             return Response(status=403)
         st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
+        if not usuario_pode_ver_projeto(request.user, st.objetivo.projeto):
+            return Response(status=403)
         concluida_antes = st.concluida
         ser = SubtarefaWriteSerializer(st, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
@@ -115,6 +136,8 @@ class SubtarefaDetailAPIView(APIView):
         if not _projeto_perm(request.user):
             return Response(status=403)
         st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
+        if not usuario_pode_ver_projeto(request.user, st.objetivo.projeto):
+            return Response(status=403)
         objetivo = st.objetivo
         titulo = st.titulo
         st.delete()
@@ -134,13 +157,14 @@ class ComentarioListCreateAPIView(APIView):
     def get(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
         qs = ComentarioObjetivo.objects.filter(objetivo_id=objetivo_id).select_related("autor")
         return Response(ComentarioSerializer(qs, many=True).data)
 
     def post(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
-        objetivo = get_object_or_404(Objetivo.objects.select_related("secao__projeto"), pk=objetivo_id)
+        objetivo = _objetivo_visivel(request.user, objetivo_id)
         ser = ComentarioWriteSerializer(data={"texto": request.data.get("texto", ""), "objetivo": objetivo_id})
         ser.is_valid(raise_exception=True)
         c = ser.save(autor=request.user)
@@ -160,6 +184,7 @@ class DependenciaListCreateAPIView(APIView):
     def get(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
         qs = DependenciaObjetivo.objects.filter(
             Q(predecessora_id=objetivo_id) | Q(sucessora_id=objetivo_id)
         ).select_related("predecessora", "sucessora")
@@ -168,6 +193,7 @@ class DependenciaListCreateAPIView(APIView):
     def post(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
         predecessora_id = request.data.get("predecessora")
         sucessora_id = request.data.get("sucessora", objetivo_id)
         if predecessora_id == sucessora_id:
@@ -194,6 +220,8 @@ class DependenciaDetailAPIView(APIView):
             DependenciaObjetivo.objects.select_related("predecessora", "sucessora__secao__projeto"),
             pk=pk,
         )
+        if not usuario_pode_ver_projeto(request.user, dep.sucessora.projeto):
+            return Response(status=403)
         sucessora = dep.sucessora
         registar_atividade(
             sucessora.projeto,
@@ -212,17 +240,18 @@ class CampoPersonalizadoListCreateAPIView(APIView):
     def get(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
         qs = CampoPersonalizado.objects.filter(projeto_id=projeto_id)
         return Response(CampoPersonalizadoSerializer(qs, many=True).data)
 
     def post(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        projeto = _projeto_visivel(request.user, projeto_id)
         data = {**request.data, "projeto": projeto_id}
         ser = CampoPersonalizadoWriteSerializer(data=data)
         ser.is_valid(raise_exception=True)
         campo = ser.save()
-        projeto = get_object_or_404(Projeto, pk=projeto_id)
         registar_atividade(projeto, request.user, "CAMPO_CRIADO", f"Criou campo «{campo.nome}»")
         return Response(CampoPersonalizadoSerializer(campo).data, status=201)
 
@@ -234,6 +263,8 @@ class CampoPersonalizadoDetailAPIView(APIView):
         if not _projeto_perm(request.user):
             return Response(status=403)
         campo = get_object_or_404(CampoPersonalizado.objects.select_related("projeto"), pk=pk)
+        if not usuario_pode_ver_projeto(request.user, campo.projeto):
+            return Response(status=403)
         projeto = campo.projeto
         nome = campo.nome
         campo.delete()
@@ -247,6 +278,7 @@ class ValorCampoAPIView(APIView):
     def post(self, request, objetivo_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
         campo_id = request.data.get("campo")
         valor, _ = ValorCampoPersonalizado.objects.update_or_create(
             objetivo_id=objetivo_id,
@@ -266,12 +298,14 @@ class VistaGuardadaListCreateAPIView(APIView):
     def get(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
         qs = VistaGuardada.objects.filter(projeto_id=projeto_id, utilizador=request.user)
         return Response(VistaGuardadaSerializer(qs, many=True).data)
 
     def post(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
         data = {
             **request.data,
             "projeto": projeto_id,
@@ -313,6 +347,7 @@ class AtividadeProjetoAPIView(APIView):
     def get(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
         qs = AtividadeProjeto.objects.filter(projeto_id=projeto_id).select_related(
             "utilizador", "objetivo"
         )[:100]
@@ -325,6 +360,7 @@ class TimelineAPIView(APIView):
     def get(self, request, projeto_id):
         if not _projeto_perm(request.user):
             return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
         objetivos = (
             Objetivo.objects.filter(secao__projeto_id=projeto_id)
             .select_related("responsavel", "secao")
@@ -358,7 +394,7 @@ class ProjetoExportCSVAPIView(APIView):
         from portic_crm.core.export import csv_response
         from portic_crm.projetos.services import nome_responsavel_objetivo
 
-        projeto = get_object_or_404(Projeto, pk=projeto_id)
+        projeto = _projeto_visivel(request.user, projeto_id)
         objetivos = (
             Objetivo.objects.filter(secao__projeto_id=projeto_id)
             .select_related("secao", "responsavel")

@@ -78,9 +78,16 @@ class DashboardAPIView(APIView):
             payload["total_empresas"] = Empresa.objects.count()
 
         if is_admin_geral(user) or user_can_access_module(user, "projetos"):
-            payload["tarefas_atrasadas"] = Objetivo.objects.filter(
-                data_limite__lt=hoje,
-            ).exclude(estado=EstadoObjetivo.CONCLUIDO).count()
+            from portic_crm.projetos.services import queryset_projetos_visiveis
+
+            payload["tarefas_atrasadas"] = (
+                Objetivo.objects.filter(
+                    secao__projeto__in=queryset_projetos_visiveis(user),
+                    data_limite__lt=hoje,
+                )
+                .exclude(estado=EstadoObjetivo.CONCLUIDO)
+                .count()
+            )
 
         if is_admin_geral(user) or user.has_perm("espacos.aprovar_reserva"):
             payload["reservas_pendentes"] = {
