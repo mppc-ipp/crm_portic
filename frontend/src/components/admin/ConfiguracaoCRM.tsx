@@ -12,26 +12,38 @@ type TipoConfig = {
 };
 
 type StatusCandidatura = TipoConfig & { cor: string };
+type TipoEvento = TipoConfig & { cor: string };
 
 export default function ConfiguracaoCRM() {
   const [tipos, setTipos] = useState<TipoConfig[]>([]);
   const [tiposHistorico, setTiposHistorico] = useState<TipoConfig[]>([]);
   const [estadosCandidatura, setEstadosCandidatura] = useState<StatusCandidatura[]>([]);
+  const [tiposEvento, setTiposEvento] = useState<TipoEvento[]>([]);
   const [loading, setLoading] = useState(true);
   const [erroTipos, setErroTipos] = useState("");
   const [erroHistorico, setErroHistorico] = useState("");
   const [erroEstados, setErroEstados] = useState("");
+  const [erroTiposEvento, setErroTiposEvento] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novoNomeHistorico, setNovoNomeHistorico] = useState("");
   const [novoNomeEstado, setNovoNomeEstado] = useState("");
   const [novaCorEstado, setNovaCorEstado] = useState("#3B82F6");
+  const [novoNomeTipoEvento, setNovoNomeTipoEvento] = useState("");
+  const [novaCorTipoEvento, setNovaCorTipoEvento] = useState("#3B82F6");
   const [editando, setEditando] = useState<TipoConfig | null>(null);
   const [editandoHistorico, setEditandoHistorico] = useState<TipoConfig | null>(null);
   const [editandoEstado, setEditandoEstado] = useState<StatusCandidatura | null>(null);
+  const [editandoTipoEvento, setEditandoTipoEvento] = useState<TipoEvento | null>(null);
   const [formEditar, setFormEditar] = useState({ nome: "", ordem: 0, ativo: true });
   const [formEditarHistorico, setFormEditarHistorico] = useState({ nome: "", ordem: 0, ativo: true });
   const [formEditarEstado, setFormEditarEstado] = useState({
+    nome: "",
+    ordem: 0,
+    ativo: true,
+    cor: "#3B82F6",
+  });
+  const [formEditarTipoEvento, setFormEditarTipoEvento] = useState({
     nome: "",
     ordem: 0,
     ativo: true,
@@ -43,15 +55,18 @@ export default function ConfiguracaoCRM() {
     setErroTipos("");
     setErroHistorico("");
     setErroEstados("");
+    setErroTiposEvento("");
     try {
-      const [empresas, historico, estados] = await Promise.all([
+      const [empresas, historico, estados, eventos] = await Promise.all([
         apiFetch<TipoConfig[]>("/api/empresas/tipos-interacao"),
         apiFetch<TipoConfig[]>("/api/startups/tipos-historico"),
         apiFetch<StatusCandidatura[]>("/api/startups/estados-candidatura"),
+        apiFetch<TipoEvento[]>("/api/eventos/tipos"),
       ]);
       setTipos(empresas);
       setTiposHistorico(historico);
       setEstadosCandidatura(estados);
+      setTiposEvento(eventos);
     } catch (e) {
       setErroTipos(e instanceof Error ? e.message : "Erro ao carregar configurações");
     } finally {
@@ -94,6 +109,28 @@ export default function ConfiguracaoCRM() {
       await carregarTipos();
     } catch (err) {
       setErroHistorico(err instanceof Error ? err.message : "Erro ao adicionar");
+    } finally {
+      setAGuardar(false);
+    }
+  }
+
+  async function adicionarTipoEvento(e: FormEvent) {
+    e.preventDefault();
+    if (!novoNomeTipoEvento.trim()) return;
+    setAGuardar(true);
+    try {
+      await apiFetch("/api/eventos/tipos", {
+        method: "POST",
+        body: JSON.stringify({
+          nome: novoNomeTipoEvento.trim(),
+          cor: novaCorTipoEvento,
+          ordem: tiposEvento.length + 1,
+        }),
+      });
+      setNovoNomeTipoEvento("");
+      await carregarTipos();
+    } catch (err) {
+      setErroTiposEvento(err instanceof Error ? err.message : "Erro ao adicionar");
     } finally {
       setAGuardar(false);
     }
@@ -233,6 +270,113 @@ export default function ConfiguracaoCRM() {
       </section>
 
       <section className="rounded-xl border bg-white p-5">
+        <h3 className="mb-1 font-semibold">Tipos de evento (Dashboard)</h3>
+        <p className="mb-4 text-sm text-slate-600">Opções do campo Tipo ao criar eventos no calendário.</p>
+        <form onSubmit={adicionarTipoEvento} className="mb-4 flex flex-wrap items-end gap-3">
+          <label className="block min-w-[160px] flex-1 text-sm text-slate-600">
+            Novo tipo
+            <input
+              value={novoNomeTipoEvento}
+              onChange={(e) => setNovoNomeTipoEvento(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm text-slate-600">
+            Cor
+            <input
+              type="color"
+              value={novaCorTipoEvento}
+              onChange={(e) => setNovaCorTipoEvento(e.target.value)}
+              className="mt-1 block h-10 w-14 rounded border"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={aGuardar || !novoNomeTipoEvento.trim()}
+            className="rounded-lg bg-portic px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+        </form>
+        {erroTiposEvento && <p className="mb-3 text-sm text-red-600">{erroTiposEvento}</p>}
+        {!loading && (
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="p-3 text-left">Nome</th>
+                  <th className="p-3 text-left">Cor</th>
+                  <th className="p-3 text-left">Ordem</th>
+                  <th className="p-3 text-left">Estado</th>
+                  <th className="p-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tiposEvento.map((t) => (
+                  <tr key={t.id} className="border-t">
+                    <td className="p-3">
+                      <span
+                        className="rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                        style={{ backgroundColor: `${t.cor}22`, color: t.cor, borderColor: `${t.cor}55` }}
+                      >
+                        {t.nome}
+                      </span>
+                    </td>
+                    <td className="p-3 font-mono text-xs">{t.cor}</td>
+                    <td className="p-3">{t.ordem}</td>
+                    <td className="p-3">{t.ativo ? "Ativo" : "Inativo"}</td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditandoTipoEvento(t);
+                            setFormEditarTipoEvento({
+                              nome: t.nome,
+                              ordem: t.ordem,
+                              ativo: t.ativo,
+                              cor: t.cor,
+                            });
+                          }}
+                          className="text-xs text-portic hover:underline"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await apiFetch(`/api/eventos/tipos/${t.id}`, {
+                              method: "PATCH",
+                              body: JSON.stringify({ ativo: !t.ativo }),
+                            });
+                            await carregarTipos();
+                          }}
+                          className="text-xs text-slate-600 hover:underline"
+                        >
+                          {t.ativo ? "Desativar" : "Ativar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`Excluir "${t.nome}"?`)) return;
+                            await apiFetch(`/api/eventos/tipos/${t.id}`, { method: "DELETE" });
+                            await carregarTipos();
+                          }}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-xl border bg-white p-5">
         <h3 className="mb-1 font-semibold">Estados de candidatura (Startups)</h3>
         <form onSubmit={adicionarEstado} className="mb-4 flex flex-wrap items-end gap-3">
           <label className="block min-w-[160px] flex-1 text-sm text-slate-600">
@@ -302,6 +446,46 @@ export default function ConfiguracaoCRM() {
           }} className="space-y-4">
             <input required value={formEditarHistorico.nome} onChange={(e) => setFormEditarHistorico((f) => ({ ...f, nome: e.target.value }))} className="w-full rounded-lg border px-3 py-2" />
             <button type="submit" className="rounded-lg bg-portic px-4 py-2 text-sm text-white">Guardar</button>
+          </form>
+        </Modal>
+      )}
+      {editandoTipoEvento && (
+        <Modal title="Editar tipo de evento" onClose={() => setEditandoTipoEvento(null)}>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!editandoTipoEvento) return;
+              await apiFetch(`/api/eventos/tipos/${editandoTipoEvento.id}`, {
+                method: "PATCH",
+                body: JSON.stringify(formEditarTipoEvento),
+              });
+              setEditandoTipoEvento(null);
+              await carregarTipos();
+            }}
+            className="space-y-4"
+          >
+            <input
+              required
+              value={formEditarTipoEvento.nome}
+              onChange={(e) => setFormEditarTipoEvento((f) => ({ ...f, nome: e.target.value }))}
+              className="w-full rounded-lg border px-3 py-2"
+            />
+            <input
+              type="number"
+              value={formEditarTipoEvento.ordem}
+              onChange={(e) =>
+                setFormEditarTipoEvento((f) => ({ ...f, ordem: parseInt(e.target.value, 10) || 0 }))
+              }
+              className="w-full rounded-lg border px-3 py-2"
+            />
+            <input
+              type="color"
+              value={formEditarTipoEvento.cor}
+              onChange={(e) => setFormEditarTipoEvento((f) => ({ ...f, cor: e.target.value }))}
+            />
+            <button type="submit" className="rounded-lg bg-portic px-4 py-2 text-sm text-white">
+              Guardar
+            </button>
           </form>
         </Modal>
       )}

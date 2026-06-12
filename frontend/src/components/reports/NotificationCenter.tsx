@@ -30,6 +30,83 @@ function formatarData(iso: string) {
   });
 }
 
+function BotaoMarcarLida({ onClick, lida }: { onClick: () => void; lida: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={lida}
+      title={lida ? "Já lida" : "Marcar como lida"}
+      aria-label={lida ? "Notificação já lida" : "Marcar como lida"}
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${
+        lida
+          ? "cursor-default border-emerald-200 bg-emerald-50 text-emerald-600"
+          : "border-slate-300 text-slate-500 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700"
+      }`}
+    >
+      <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
+        <path
+          fillRule="evenodd"
+          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.25a1 1 0 0 1-1.414 0l-3.25-3.25a1 1 0 1 1 1.414-1.414l2.543 2.543 6.543-6.543a1 1 0 0 1 1.408 0Z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function NotificacaoEvento({ n, onMarcarLida }: { n: Notificacao; onMarcarLida: (id: number) => void }) {
+  const texto = <span className="font-medium">{n.titulo}</span>;
+
+  return (
+    <li className={`flex items-center gap-2 py-1.5 ${n.lida ? "opacity-60" : ""}`}>
+      <BotaoMarcarLida lida={n.lida} onClick={() => onMarcarLida(n.id)} />
+      <div className="min-w-0 flex-1 truncate text-sm text-slate-800">
+        {n.url ? (
+          <Link href={n.url} onClick={() => onMarcarLida(n.id)} className="hover:text-portic">
+            {texto}
+          </Link>
+        ) : (
+          <button type="button" onClick={() => onMarcarLida(n.id)} className="truncate text-left">
+            {texto}
+          </button>
+        )}
+      </div>
+      <span className="shrink-0 text-[11px] text-slate-400">{formatarData(n.criado_em)}</span>
+    </li>
+  );
+}
+
+function NotificacaoPadrao({ n, onMarcarLida }: { n: Notificacao; onMarcarLida: (id: number) => void }) {
+  return (
+    <li className={`flex items-start gap-2 py-3 ${n.lida ? "opacity-70" : ""}`}>
+      <BotaoMarcarLida lida={n.lida} onClick={() => onMarcarLida(n.id)} />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-slate-500">{n.tipo_display}</p>
+        {n.url ? (
+          <Link
+            href={n.url}
+            onClick={() => onMarcarLida(n.id)}
+            className="font-medium text-portic hover:underline"
+          >
+            {n.titulo}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onMarcarLida(n.id)}
+            className="text-left font-medium text-slate-900"
+          >
+            {n.titulo}
+          </button>
+        )}
+        {n.mensagem && <p className="mt-0.5 text-sm text-slate-600">{n.mensagem}</p>}
+      </div>
+      <span className="shrink-0 whitespace-nowrap text-xs text-slate-400">{formatarData(n.criado_em)}</span>
+    </li>
+  );
+}
+
 export default function NotificationCenter() {
   const [data, setData] = useState<Payload | null>(null);
   const [filtro, setFiltro] = useState<"todas" | "nao_lidas">("nao_lidas");
@@ -57,7 +134,25 @@ export default function NotificationCenter() {
       method: "PATCH",
       body: JSON.stringify({ lida: true }),
     });
-    void carregar();
+    if (filtro === "nao_lidas") {
+      setData((prev) =>
+        prev
+          ? {
+              nao_lidas: Math.max(0, prev.nao_lidas - 1),
+              items: prev.items.filter((n) => n.id !== id),
+            }
+          : prev
+      );
+    } else {
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((n) => (n.id === id ? { ...n, lida: true } : n)),
+            }
+          : prev
+      );
+    }
   }
 
   async function marcarTodas() {
@@ -104,34 +199,13 @@ export default function NotificationCenter() {
         <p className="text-sm text-slate-500">Sem notificações.</p>
       ) : (
         <ul className="divide-y">
-          {items.map((n) => (
-            <li key={n.id} className={`py-3 ${n.lida ? "opacity-70" : ""}`}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-slate-500">{n.tipo_display}</p>
-                  {n.url ? (
-                    <Link
-                      href={n.url}
-                      onClick={() => void marcarLida(n.id)}
-                      className="font-medium text-portic hover:underline"
-                    >
-                      {n.titulo}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void marcarLida(n.id)}
-                      className="text-left font-medium text-slate-900"
-                    >
-                      {n.titulo}
-                    </button>
-                  )}
-                  {n.mensagem && <p className="mt-0.5 text-sm text-slate-600">{n.mensagem}</p>}
-                </div>
-                <span className="whitespace-nowrap text-xs text-slate-400">{formatarData(n.criado_em)}</span>
-              </div>
-            </li>
-          ))}
+          {items.map((n) =>
+            n.tipo === "EVENTO_PROXIMO" ? (
+              <NotificacaoEvento key={n.id} n={n} onMarcarLida={marcarLida} />
+            ) : (
+              <NotificacaoPadrao key={n.id} n={n} onMarcarLida={marcarLida} />
+            )
+          )}
         </ul>
       )}
     </section>

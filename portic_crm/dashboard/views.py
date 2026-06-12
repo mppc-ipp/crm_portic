@@ -31,9 +31,7 @@ class DashboardView(ModulePermissionMixin, TemplateView):
         ctx["candidaturas_em_curso"] = Candidatura.objects.exclude(
             estado__in=["APROVADA", "REJEITADA"]
         ).count()
-        ctx["proximos_eventos"] = Evento.objects.filter(
-            data_inicio__gte=timezone.now()
-        ).order_by("data_inicio")[:10]
+        ctx["proximos_eventos"] = Evento.visiveis_no_dashboard()[:10]
         ctx["edicoes"] = Edicao.objects.filter(ativa=True)
         return ctx
 

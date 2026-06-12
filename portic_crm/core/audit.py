@@ -72,6 +72,16 @@ class AcaoAuditoria:
     CAMPO_CRIADO = "CAMPO_CRIADO"
     CAMPO_REMOVIDO = "CAMPO_REMOVIDO"
 
+    # Dashboard — eventos
+    EVENTO_CRIADO = "EVENTO_CRIADO"
+    EVENTO_EDITADO = "EVENTO_EDITADO"
+    EVENTO_REMOVIDO = "EVENTO_REMOVIDO"
+    EVENTO_ANEXO_ADICIONADO = "EVENTO_ANEXO_ADD"
+    EVENTO_ANEXO_REMOVIDO = "EVENTO_ANEXO_DEL"
+    TIPO_EVENTO_CRIADO = "TIPO_EVENTO_CRIADO"
+    TIPO_EVENTO_EDITADO = "TIPO_EVENTO_EDITADO"
+    TIPO_EVENTO_REMOVIDO = "TIPO_EVENTO_REMOVIDO"
+
 
 ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.LOGIN: "Login efectuado",
@@ -120,6 +130,14 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.DEPENDENCIA_REMOVIDA: "Dependência removida",
     AcaoAuditoria.CAMPO_CRIADO: "Campo personalizado criado",
     AcaoAuditoria.CAMPO_REMOVIDO: "Campo personalizado removido",
+    AcaoAuditoria.EVENTO_CRIADO: "Evento criado",
+    AcaoAuditoria.EVENTO_EDITADO: "Evento editado",
+    AcaoAuditoria.EVENTO_REMOVIDO: "Evento removido",
+    AcaoAuditoria.EVENTO_ANEXO_ADICIONADO: "Anexo adicionado a evento",
+    AcaoAuditoria.EVENTO_ANEXO_REMOVIDO: "Anexo removido de evento",
+    AcaoAuditoria.TIPO_EVENTO_CRIADO: "Tipo de evento criado",
+    AcaoAuditoria.TIPO_EVENTO_EDITADO: "Tipo de evento editado",
+    AcaoAuditoria.TIPO_EVENTO_REMOVIDO: "Tipo de evento removido/desactivado",
 }
 
 

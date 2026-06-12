@@ -18,7 +18,12 @@ from portic_crm.core.api_views import (
     NotificacoesAPIView,
     NotificacoesMarcarTodasAPIView,
 )
-from portic_crm.dashboard.api_views import DashboardAPIView
+from portic_crm.dashboard.api_views import (
+    AnexoEventoAPIView,
+    DashboardAPIView,
+    EventoViewSet,
+    TipoEventoViewSet,
+)
 from portic_crm.empresas.api_views import (
     EmpresaEstatisticasAPIView,
     EmpresaInteracaoAPIView,
@@ -64,9 +69,13 @@ router.register(r"startups", StartupViewSet, basename="startup")
 router.register(r"projetos/secoes", SecaoViewSet, basename="secao")
 router.register(r"projetos/objetivos", ObjetivoViewSet, basename="objetivo")
 router.register(r"projetos", ProjetoViewSet, basename="projeto")
+router.register(r"eventos/tipos", TipoEventoViewSet, basename="tipo-evento")
+router.register(r"eventos", EventoViewSet, basename="evento")
 
 urlpatterns = [
     path("dashboard", DashboardAPIView.as_view()),
+    path("eventos/<int:evento_pk>/anexos", AnexoEventoAPIView.as_view()),
+    path("eventos/<int:evento_pk>/anexos/<int:pk>", AnexoEventoAPIView.as_view()),
     path("notificacoes", NotificacoesAPIView.as_view()),
     path("notificacoes/marcar-todas-lidas", NotificacoesMarcarTodasAPIView.as_view()),
     path("notificacoes/<int:pk>", NotificacaoDetailAPIView.as_view()),

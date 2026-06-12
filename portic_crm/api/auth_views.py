@@ -34,6 +34,9 @@ def _user_payload(user: User) -> dict:
         "grupos": grupos,
         "modulos": modulos,
         "admin_geral": is_admin_geral(user),
+        "permissoes": {
+            "gerir_eventos": is_admin_geral(user) or user.has_perm("dashboard.gerir_eventos"),
+        },
     }
 
 

@@ -15,6 +15,7 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
 
   const links: Array<{ href: string; label: string; show: boolean }> = [
     { href: "/dashboard", label: "Dashboard", show: adminGeral || Boolean(modulos.dashboard) },
+    { href: "/dashboard/eventos", label: "Eventos", show: adminGeral || Boolean(modulos.dashboard) },
     { href: "/empresas", label: "Empresas", show: adminGeral || Boolean(modulos.empresas) },
     { href: "/startups", label: "Startups", show: adminGeral || Boolean(modulos.startups) },
     { href: "/projetos", label: "Projetos", show: adminGeral || Boolean(modulos.projetos) },
@@ -27,7 +28,10 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
         {links
           .filter((l) => l.show)
           .map((l) => {
-            const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
+            const active =
+              l.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname === l.href || pathname.startsWith(`${l.href}/`);
             return (
               <Link
                 key={l.href}

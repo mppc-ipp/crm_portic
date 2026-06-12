@@ -55,7 +55,6 @@ def criar_notificacao(
             utilizador=utilizador,
             tipo=tipo,
             metadata__dedupe_key=dedupe_key,
-            lida=False,
         ).exists()
         if exists:
             return None
@@ -105,6 +104,49 @@ def notificar_reserva_pendente(pedido):
     )
 
 
+def _dias_calendario_evento(evento):
+    """Cada dia civil entre início e fim do evento (inclusive)."""
+    inicio = timezone.localtime(evento.data_inicio).date()
+    fim = timezone.localtime(evento.data_fim).date()
+    dia = inicio
+    while dia <= fim:
+        yield dia
+        dia += timedelta(days=1)
+
+
+def _texto_notificacao_evento(evento, dia) -> str:
+    partes = ["Evento"]
+    if evento.tipo_id and evento.tipo.nome:
+        partes.append(evento.tipo.nome)
+    partes.append(evento.titulo)
+    partes.append(dia.strftime("%d/%m/%Y"))
+    return " - ".join(partes)[:255]
+
+
+def _limpar_duplicados_evento(user):
+    """Remove notificações de evento repetidas (legado ou sync anterior)."""
+    vistos: set[str] = set()
+    apagar: list[int] = []
+    for notif in Notificacao.objects.filter(
+        utilizador=user,
+        tipo=TipoNotificacao.EVENTO_PROXIMO,
+    ).order_by("created_at"):
+        dedupe = (notif.metadata or {}).get("dedupe_key", "")
+        # Formato antigo: uma notificação por evento (evento_12), por vezes com hora na mensagem
+        if dedupe.startswith("evento_") and dedupe.count("_") == 1:
+            apagar.append(notif.pk)
+            continue
+        partes_msg = (notif.mensagem or "").split()
+        data_msg = partes_msg[0] if partes_msg else ""
+        chave = dedupe or f"{notif.titulo}|{data_msg}"
+        if chave in vistos:
+            apagar.append(notif.pk)
+        else:
+            vistos.add(chave)
+    if apagar:
+        Notificacao.objects.filter(pk__in=apagar).delete()
+
+
 def sincronizar_notificacoes_sistema(user):
     """Gera notificações derivadas de consultas (contratos, tarefas, eventos)."""
     from portic_crm.core.permissions import is_admin_geral, user_can_access_module
@@ -147,15 +189,30 @@ def sincronizar_notificacoes_sistema(user):
                 )
 
     if user_can_access_module(user, "dashboard"):
-        for ev in Evento.objects.filter(
-            data_inicio__gte=timezone.now(),
-            data_inicio__lte=timezone.now() + timedelta(days=14),
-        )[:10]:
-            criar_notificacao(
-                user,
-                TipoNotificacao.EVENTO_PROXIMO,
-                f"Evento — {ev.titulo}",
-                ev.data_inicio.strftime("%d/%m/%Y %H:%M"),
-                "/dashboard",
-                dedupe_key=f"evento_{ev.pk}",
-            )
+        _limpar_duplicados_evento(user)
+        limite_visibilidade = hoje - timedelta(days=1)
+        for ev in Evento.visiveis_no_dashboard()[:15]:
+            for dia in _dias_calendario_evento(ev):
+                if dia < limite_visibilidade:
+                    continue
+                titulo = _texto_notificacao_evento(ev, dia)
+                dedupe_key = f"evento_{ev.pk}_{dia.isoformat()}"
+                existente = Notificacao.objects.filter(
+                    utilizador=user,
+                    tipo=TipoNotificacao.EVENTO_PROXIMO,
+                    metadata__dedupe_key=dedupe_key,
+                ).first()
+                if existente:
+                    if existente.titulo != titulo or existente.mensagem:
+                        existente.titulo = titulo
+                        existente.mensagem = ""
+                        existente.save(update_fields=["titulo", "mensagem", "updated_at"])
+                    continue
+                criar_notificacao(
+                    user,
+                    TipoNotificacao.EVENTO_PROXIMO,
+                    titulo,
+                    "",
+                    "/dashboard/eventos",
+                    dedupe_key=dedupe_key,
+                )

@@ -148,6 +148,9 @@ export type UserSession = {
   email?: string;
   modulos: Record<string, boolean>;
   admin_geral: boolean;
+  permissoes?: {
+    gerir_eventos?: boolean;
+  };
   is_superuser?: boolean;
   is_staff?: boolean;
   grupos?: string[];
