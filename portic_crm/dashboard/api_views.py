@@ -107,7 +107,7 @@ class DashboardAPIView(APIView):
                 "data_inicio": e.data_inicio.isoformat(),
                 "data_fim": e.data_fim.isoformat(),
             }
-            for e in Evento.visiveis_no_dashboard()[:10]
+            for e in Evento.visiveis_no_dashboard(user)[:10]
         ]
 
         if request.query_params.get("format") == "csv":
@@ -151,7 +151,10 @@ class EventoViewSet(viewsets.ModelViewSet):
         if not _pode_ver_eventos(self.request.user):
             return Evento.objects.none()
 
-        qs = Evento.objects.select_related("tipo").prefetch_related("anexos")
+        qs = Evento.filtrar_visiveis_para(
+            Evento.objects.select_related("tipo").prefetch_related("anexos"),
+            self.request.user,
+        )
         periodo = self.request.query_params.get("periodo", "todos")
         agora = timezone.now()
 
@@ -248,9 +251,12 @@ class AnexoEventoAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, evento_pk):
+        evento = get_object_or_404(
+            Evento.filtrar_visiveis_para(Evento.objects.all(), request.user),
+            pk=evento_pk,
+        )
         if not _pode_gerir_eventos(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
-        evento = get_object_or_404(Evento, pk=evento_pk)
         if _evento_passado(evento) and not is_admin_geral(request.user):
             return Response(
                 {"error": "Não é possível anexar ficheiros a eventos passados."},
@@ -287,9 +293,12 @@ class AnexoEventoAPIView(APIView):
         )
 
     def delete(self, request, evento_pk, pk):
+        evento = get_object_or_404(
+            Evento.filtrar_visiveis_para(Evento.objects.all(), request.user),
+            pk=evento_pk,
+        )
         if not _pode_gerir_eventos(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
-        evento = get_object_or_404(Evento, pk=evento_pk)
         if _evento_passado(evento) and not is_admin_geral(request.user):
             return Response(
                 {"error": "Não é possível remover anexos de eventos passados."},

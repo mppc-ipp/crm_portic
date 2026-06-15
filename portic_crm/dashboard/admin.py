@@ -17,8 +17,8 @@ class TipoEventoAdmin(admin.ModelAdmin):
 
 @admin.register(Evento)
 class EventoAdmin(admin.ModelAdmin):
-    list_display = ("titulo", "tipo", "data_inicio", "data_fim")
-    list_filter = ("tipo",)
+    list_display = ("titulo", "tipo", "data_inicio", "data_fim", "particular", "criado_por")
+    list_filter = ("tipo", "particular")
     inlines = [AnexoEventoInline]
 
 

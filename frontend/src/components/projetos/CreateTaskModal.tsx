@@ -10,7 +10,7 @@ export type NovaTarefaData = {
   descricao: string;
   data_limite: string | null;
   responsavel: number | null;
-  responsavel_email: string | null;
+  responsavel_email: string;
 };
 
 type Props = {

@@ -236,6 +236,7 @@ class ProjetoSerializer(serializers.ModelSerializer):
             "responsavel_nome",
             "estado",
             "cor",
+            "arquivado",
             "membros",
             "secoes",
             "campos_personalizados",
@@ -253,7 +254,7 @@ class ProjetoWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Projeto
-        fields = ["id", "nome", "resumo", "responsavel", "estado", "cor", "membros_emails"]
+        fields = ["id", "nome", "resumo", "responsavel", "estado", "cor", "arquivado", "membros_emails"]
 
     def create(self, validated_data):
         validated_data.pop("membros_emails", None)
@@ -285,6 +286,9 @@ class ObjetivoWriteSerializer(serializers.ModelSerializer):
             "ordem",
             "secao",
         ]
+        extra_kwargs = {
+            "responsavel_email": {"allow_null": True},
+        }
 
     def _projeto_alvo(self):
         if self.instance:
@@ -300,6 +304,9 @@ class ObjetivoWriteSerializer(serializers.ModelSerializer):
             return None
 
     def validate(self, attrs):
+        if attrs.get("responsavel_email") is None:
+            attrs["responsavel_email"] = ""
+
         projeto = self._projeto_alvo()
         if not projeto:
             return attrs

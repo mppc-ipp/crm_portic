@@ -132,7 +132,7 @@ class FormularioSerializer(serializers.ModelSerializer):
         extra_kwargs = {"edicao": {"required": False}}
 
     def get_link_publico(self, obj):
-        web = self.context.get("web_url", "http://localhost:3000")
+        web = self.context.get("web_url", "http://localhost:3002")
         return f"{web}/candidatura/{obj.token}"
 
     def get_num_candidaturas(self, obj):

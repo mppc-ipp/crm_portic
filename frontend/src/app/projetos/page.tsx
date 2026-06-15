@@ -36,14 +36,29 @@ export default function ProjetosPage() {
   const [aMostrarNovaSecao, setAMostrarNovaSecao] = useState(false);
   const [secaoNovaTarefa, setSecaoNovaTarefa] = useState<number | null>(null);
   const [erroGeral, setErroGeral] = useState("");
+  const [arquivoExpandido, setArquivoExpandido] = useState(false);
+  const [aArquivar, setAArquivar] = useState(false);
+
+  const projetosAtivos = useMemo(() => projetos.filter((p) => !p.arquivado), [projetos]);
+  const projetosArquivados = useMemo(() => projetos.filter((p) => p.arquivado), [projetos]);
+
+  const selecionarProjeto = useCallback((p: Projeto) => {
+    setAtivo(p);
+    setTarefaSelId(null);
+    setErroGeral("");
+  }, []);
 
   const carregar = useCallback(async () => {
     const data = await apiFetch<Projeto[]>("/api/projetos");
     const lista = Array.isArray(data) ? data : [];
     setProjetos(lista);
     setAtivo((prev) => {
-      if (prev) return lista.find((p) => p.id === prev.id) ?? lista[0] ?? null;
-      const comPadrao = lista.find((p) => p.vistas_guardadas?.some((v) => v.padrao));
+      if (prev) {
+        const atualizado = lista.find((p) => p.id === prev.id);
+        if (atualizado) return atualizado;
+      }
+      const ativos = lista.filter((p) => !p.arquivado);
+      const comPadrao = ativos.find((p) => p.vistas_guardadas?.some((v) => v.padrao));
       if (comPadrao) {
         const vp = comPadrao.vistas_guardadas?.find((v) => v.padrao);
         if (vp) {
@@ -53,7 +68,7 @@ export default function ProjetosPage() {
         }
         return comPadrao;
       }
-      return lista[0] ?? null;
+      return ativos[0] ?? lista[0] ?? null;
     });
     return lista;
   }, []);
@@ -200,7 +215,11 @@ export default function ProjetosPage() {
     : null;
 
   async function atualizarTarefa(id: number, patch: Partial<Objetivo>) {
-    await apiFetch(`/api/projetos/objetivos/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+    const body = { ...patch };
+    if ("responsavel_email" in body) {
+      body.responsavel_email = body.responsavel_email ?? "";
+    }
+    await apiFetch(`/api/projetos/objetivos/${id}`, { method: "PATCH", body: JSON.stringify(body) });
     await carregar();
     if (ativo && vista === "timeline") await carregarTimeline(ativo.id);
   }
@@ -276,6 +295,48 @@ export default function ProjetosPage() {
     await carregar();
   }
 
+  async function arquivarProjeto(arquivar: boolean) {
+    if (!ativo) return;
+    setErroGeral("");
+    setAArquivar(true);
+    try {
+      await apiFetch(`/api/projetos/${ativo.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ arquivado: arquivar }),
+      });
+      const lista = await carregar();
+      if (arquivar) {
+        const proximo = lista.filter((p) => !p.arquivado && p.id !== ativo.id)[0] ?? null;
+        setAtivo(proximo);
+        if (lista.some((p) => p.arquivado)) setArquivoExpandido(true);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro ao arquivar projeto";
+      setErroGeral(msg);
+    } finally {
+      setAArquivar(false);
+    }
+  }
+
+  function renderItemProjeto(p: Projeto, arquivado = false) {
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => selecionarProjeto(p)}
+        className={`mb-0.5 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+          ativo?.id === p.id ? `bg-white shadow-sm ${T.textActive}` : "text-slate-700 hover:bg-white/80"
+        } ${arquivado ? "opacity-80" : ""}`}
+      >
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${ativo?.id === p.id ? "ring-2 ring-offset-1 ring-slate-300" : ""}`}
+          style={{ backgroundColor: normalizarCor(p.cor) }}
+        />
+        <span className="truncate">{p.nome}</span>
+      </button>
+    );
+  }
+
   const abrirModalNovaSecao = () => setAMostrarNovaSecao(true);
   const propsSecao = {
     onAddSection: abrirModalNovaSecao,
@@ -297,26 +358,33 @@ export default function ProjetosPage() {
           <h1 className="text-sm font-bold uppercase tracking-wide text-slate-500">Projetos</h1>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
-          {projetos.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => {
-                setAtivo(p);
-                setTarefaSelId(null);
-                setErroGeral("");
-              }}
-              className={`mb-0.5 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
-                ativo?.id === p.id ? `bg-white shadow-sm ${T.textActive}` : "text-slate-700 hover:bg-white/80"
-              }`}
-            >
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${ativo?.id === p.id ? "ring-2 ring-offset-1 ring-slate-300" : ""}`}
-                style={{ backgroundColor: normalizarCor(p.cor) }}
-              />
-              <span className="truncate">{p.nome}</span>
-            </button>
-          ))}
+          {projetosAtivos.map((p) => renderItemProjeto(p))}
+
+          {projetosArquivados.length > 0 && (
+            <div className="mt-2 border-t border-slate-200 pt-2">
+              <button
+                type="button"
+                onClick={() => setArquivoExpandido((v) => !v)}
+                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-white/80"
+              >
+                <span>Arquivo</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={`h-4 w-4 transition-transform ${arquivoExpandido ? "rotate-180" : ""}`}
+                  aria-hidden
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              {arquivoExpandido && projetosArquivados.map((p) => renderItemProjeto(p, true))}
+            </div>
+          )}
         </nav>
         <div className="border-t border-slate-200 p-2">
           <button type="button" onClick={() => setAMostrarNovoProjeto(true)} className={`w-full px-3 py-2 text-left ${T.btnGhost}`}>
@@ -339,6 +407,14 @@ export default function ProjetosPage() {
                   apiPath={`/api/projetos/${ativo.id}/export`}
                   className="border-slate-200 text-xs font-medium text-slate-600"
                 />
+                <button
+                  type="button"
+                  onClick={() => void arquivarProjeto(!ativo.arquivado)}
+                  disabled={aArquivar}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {aArquivar ? "A guardar…" : ativo.arquivado ? "Restaurar" : "Arquivar"}
+                </button>
                 <ActivityFeed projetoId={ativo.id} />
                 <CustomFieldsManager
                   campos={ativo.campos_personalizados ?? []}

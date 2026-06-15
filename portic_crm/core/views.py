@@ -12,7 +12,7 @@ class HomeRedirectView(RedirectView):
     permanent = False
 
     def get_redirect_url(self, *args, **kwargs):
-        web_url = getattr(settings, "WEB_URL", "http://localhost:3000").rstrip("/")
+        web_url = getattr(settings, "WEB_URL", "http://localhost:3002").rstrip("/")
         return f"{web_url}/login"
 
 
@@ -20,14 +20,14 @@ class PorticLoginView(RedirectView):
     permanent = False
 
     def get_redirect_url(self, *args, **kwargs):
-        return f"{getattr(settings, 'WEB_URL', 'http://localhost:3000').rstrip('/')}/login"
+        return f"{getattr(settings, 'WEB_URL', 'http://localhost:3002').rstrip('/')}/login"
 
 
 class PorticLogoutView(RedirectView):
     permanent = False
 
     def get_redirect_url(self, *args, **kwargs):
-        return f"{getattr(settings, 'WEB_URL', 'http://localhost:3000').rstrip('/')}/login"
+        return f"{getattr(settings, 'WEB_URL', 'http://localhost:3002').rstrip('/')}/login"
 
 
 class PostLoginRedirectView(View):

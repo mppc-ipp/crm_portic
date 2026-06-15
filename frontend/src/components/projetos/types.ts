@@ -89,6 +89,7 @@ export type Projeto = {
   nome: string;
   resumo: string;
   estado: string;
+  arquivado?: boolean;
   cor?: string;
   responsavel?: number | null;
   responsavel_nome?: string | null;

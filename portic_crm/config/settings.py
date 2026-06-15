@@ -150,14 +150,14 @@ CORS_ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000",
+        "http://localhost:3002,http://127.0.0.1:3002",
     ).split(",")
     if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-API_PUBLIC_URL = os.environ.get("API_PUBLIC_URL", "http://localhost:8000")
-WEB_URL = os.environ.get("WEB_URL", "http://localhost:3000")
+API_PUBLIC_URL = os.environ.get("API_PUBLIC_URL", "http://localhost:8002")
+WEB_URL = os.environ.get("WEB_URL", "http://localhost:3002")
 RESERVA_ADMIN_EMAIL = os.environ.get("RESERVA_ADMIN_EMAIL", "admin@portic.local")
 
 # Celery

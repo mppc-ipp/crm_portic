@@ -42,6 +42,7 @@ export default function EventModal({
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [particular, setParticular] = useState(false);
   const [anexos, setAnexos] = useState<AnexoEvento[]>([]);
   const [ficheiros, setFicheiros] = useState<File[]>([]);
   const [aGuardar, setAGuardar] = useState(false);
@@ -76,6 +77,7 @@ export default function EventModal({
           setDataInicio(paraDatetimeLocal(ev.data_inicio));
           setDataFim(paraDatetimeLocal(ev.data_fim));
           setDescricao(ev.descricao);
+          setParticular(ev.particular);
           setAnexos(ev.anexos);
         })
         .catch((e: Error) => setErro(e.message));
@@ -83,6 +85,7 @@ export default function EventModal({
       setDetalhe(null);
       setTitulo("");
       setDescricao("");
+      setParticular(false);
       setAnexos([]);
       setFicheiros([]);
       if (initialInicio) setDataInicio(paraDatetimeLocal(initialInicio.toISOString()));
@@ -131,6 +134,7 @@ export default function EventModal({
         data_inicio: deDatetimeLocal(dataInicio),
         data_fim: deDatetimeLocal(dataFim),
         descricao,
+        particular,
       };
 
       let id = eventoId;
@@ -269,6 +273,22 @@ export default function EventModal({
               readOnly={somenteLeitura}
             />
           </div>
+
+          {!somenteLeitura && podeGerir && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={particular}
+                onChange={(e) => setParticular(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Evento particular (visível apenas para si)
+            </label>
+          )}
+
+          {somenteLeitura && detalhe?.particular && (
+            <p className="text-xs text-slate-500">Evento particular — visível apenas para o criador.</p>
+          )}
 
           {(anexos.length > 0 || (!somenteLeitura && podeGerir)) && (
             <div>

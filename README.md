@@ -20,24 +20,24 @@ docker compose up --build
 ```
 
 **Importante:** o arranque sobe **3 serviços** — `db`, `web` (Django API) e `frontend` (Next.js).  
-Se só vires `db` e `web` em `docker compose ps`, o `:3000` não abre. Corrige com:
+Se só vires `db` e `web` em `docker compose ps`, o `:3002` não abre. Corrige com:
 
 ```bash
 docker compose up -d --build
-docker compose ps   # deve listar frontend na porta 3000
+docker compose ps   # deve listar frontend na porta 3002
 ```
 
-Na **primeira visita** a http://localhost:3000, o Next.js pode demorar ~10–15 s a compilar — aguarda e recarrega.
+Na **primeira visita** a http://localhost:3002, o Next.js pode demorar ~10–15 s a compilar — aguarda e recarrega.
 
 | Serviço | URL |
 |---------|-----|
-| **Frontend Next.js** | http://localhost:3000 |
-| **API Django** | http://localhost:8000/api/ |
-| **Admin Django** | http://localhost:8000/admin/ |
+| **Frontend Next.js** | http://localhost:3002 |
+| **API Django** | http://localhost:8002/api/ |
+| **Admin Django** | http://localhost:8002/admin/ |
 
-Use o **frontend** (http://localhost:3000) para o dia-a-dia.  
-http://localhost:8000 redireciona automaticamente para o frontend — a interface antiga Django já não é a principal.  
-O admin Django (http://localhost:8000/admin/) serve para configurar salas, viaturas e projetos.
+Use o **frontend** (http://localhost:3002) para o dia-a-dia.  
+http://localhost:8002 redireciona automaticamente para o frontend — a interface antiga Django já não é a principal.  
+O admin Django (http://localhost:8002/admin/) serve para configurar salas, viaturas e projetos.
 
 ### Credenciais iniciais (desenvolvimento)
 

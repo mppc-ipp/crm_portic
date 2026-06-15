@@ -41,6 +41,7 @@ class Projeto(TimeStampedModel):
         default=EstadoProjeto.ATIVO,
     )
     cor = models.CharField(max_length=7, default="#1e3a5f")
+    arquivado = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["nome"]

@@ -115,8 +115,8 @@ def _criar_tokens_email(pedido: PedidoReserva):
 
 def _enviar_email_pedido(pedido: PedidoReserva):
     tokens = {t.acao: t.token for t in pedido.tokens.filter(usado=False)}
-    api_base = getattr(settings, "API_PUBLIC_URL", "http://localhost:8000")
-    web_base = getattr(settings, "WEB_URL", "http://localhost:3000")
+    api_base = getattr(settings, "API_PUBLIC_URL", "http://localhost:8002")
+    web_base = getattr(settings, "WEB_URL", "http://localhost:3002")
     prefix = "/api/viaturas" if pedido.modulo == ModuloEspaco.VIATURA else "/api"
     horarios = "".join(
         f"<li>{o.data_inicio} — {o.data_fim}</li>" for o in pedido.ocorrencias.all()

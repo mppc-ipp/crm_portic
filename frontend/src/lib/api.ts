@@ -3,9 +3,9 @@
  */
 function resolveApiBase(): string {
   if (typeof window !== "undefined") {
-    return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+    return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8002").replace(/\/$/, "");
   }
-  return (process.env.API_INTERNAL_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  return (process.env.API_INTERNAL_URL ?? "http://localhost:8002").replace(/\/$/, "");
 }
 
 export const API_URL = resolveApiBase();
@@ -94,7 +94,7 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
   } catch {
     const hint =
       typeof window !== "undefined"
-        ? " Verifique se o backend está a correr em http://localhost:8000 (docker compose up)."
+        ? " Verifique se o backend está a correr em http://localhost:8002 (docker compose up)."
         : "";
     throw new Error(`Não foi possível contactar a API (${url}).${hint}`);
   }

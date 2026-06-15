@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -50,6 +51,17 @@ class Evento(TimeStampedModel):
     data_inicio = models.DateTimeField()
     data_fim = models.DateTimeField()
     descricao = models.TextField(blank=True)
+    particular = models.BooleanField(
+        default=False,
+        help_text="Se activo, o evento só é visível para quem o criou.",
+    )
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eventos_criados",
+    )
 
     class Meta:
         ordering = ["data_inicio"]
@@ -62,10 +74,17 @@ class Evento(TimeStampedModel):
         return self.titulo
 
     @classmethod
-    def visiveis_no_dashboard(cls):
+    def filtrar_visiveis_para(cls, qs, user):
+        if user and user.is_authenticated:
+            return qs.filter(Q(particular=False) | Q(criado_por=user))
+        return qs.filter(particular=False)
+
+    @classmethod
+    def visiveis_no_dashboard(cls, user=None):
         """Eventos activos ou que terminaram ontem (visíveis até ao dia seguinte ao fim)."""
         limite = timezone.localdate() - timedelta(days=1)
-        return cls.objects.filter(data_fim__date__gte=limite).select_related("tipo").order_by("data_inicio")
+        qs = cls.objects.filter(data_fim__date__gte=limite).select_related("tipo").order_by("data_inicio")
+        return cls.filtrar_visiveis_para(qs, user)
 
 
 class AnexoEvento(TimeStampedModel):

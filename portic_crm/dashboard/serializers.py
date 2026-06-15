@@ -83,6 +83,7 @@ class EventoSerializer(serializers.ModelSerializer):
             "data_inicio",
             "data_fim",
             "descricao",
+            "particular",
             "anexos",
             "passado",
             "editable",
@@ -90,6 +91,12 @@ class EventoSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            validated_data["criado_por"] = request.user
+        return super().create(validated_data)
 
     def get_passado(self, obj):
         return obj.data_fim < timezone.now()

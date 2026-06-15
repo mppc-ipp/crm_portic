@@ -41,6 +41,7 @@ export type EventoDetalhe = {
   data_inicio: string;
   data_fim: string;
   descricao: string;
+  particular: boolean;
   anexos: AnexoEvento[];
   passado: boolean;
   editable: boolean;

@@ -31,7 +31,7 @@ class DashboardView(ModulePermissionMixin, TemplateView):
         ctx["candidaturas_em_curso"] = Candidatura.objects.exclude(
             estado__in=["APROVADA", "REJEITADA"]
         ).count()
-        ctx["proximos_eventos"] = Evento.visiveis_no_dashboard()[:10]
+        ctx["proximos_eventos"] = Evento.visiveis_no_dashboard(self.request.user)[:10]
         ctx["edicoes"] = Edicao.objects.filter(ativa=True)
         return ctx
 
@@ -41,3 +41,6 @@ class EventoListView(ModulePermissionMixin, ListView):
     permission_required = "dashboard.gerir_eventos"
     template_name = "dashboard/evento_list.html"
     context_object_name = "eventos"
+
+    def get_queryset(self):
+        return Evento.filtrar_visiveis_para(super().get_queryset(), self.request.user)

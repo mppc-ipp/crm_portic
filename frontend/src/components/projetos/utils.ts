@@ -41,17 +41,17 @@ export function atribuiveisDoProjeto(projeto: Projeto | null): Atribuivel[] {
 
 export function parseAtribuicaoKey(key: string): {
   responsavel: number | null;
-  responsavel_email: string | null;
+  responsavel_email: string;
 } {
-  if (!key) return { responsavel: null, responsavel_email: null };
+  if (!key) return { responsavel: null, responsavel_email: "" };
   if (key.startsWith("u:")) {
     const id = Number(key.slice(2));
-    return Number.isFinite(id) ? { responsavel: id, responsavel_email: null } : { responsavel: null, responsavel_email: null };
+    return Number.isFinite(id) ? { responsavel: id, responsavel_email: "" } : { responsavel: null, responsavel_email: "" };
   }
   if (key.startsWith("e:")) {
     return { responsavel: null, responsavel_email: key.slice(2) };
   }
-  return { responsavel: null, responsavel_email: null };
+  return { responsavel: null, responsavel_email: "" };
 }
 
 export function atribuicaoKeyFromObjetivo(obj: Objetivo): string {
