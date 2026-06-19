@@ -3,16 +3,19 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PlatformBadge from "@/components/marketing/PlatformBadge";
-import type { ContaSocial, LinkedInOrganizacao, MetaPagina, Plataforma } from "@/components/marketing/types";
+import type { ContaSocial, LinkedInOrganizacao, MetaPagina, Plataforma, TikTokPerfil } from "@/components/marketing/types";
 import {
   desligarConta,
   iniciarOAuthLinkedIn,
   iniciarOAuthMeta,
+  iniciarOAuthTikTok,
   ligarContaLinkedIn,
   ligarContaMeta,
+  ligarContaTikTok,
   listarContas,
   listarOrgsLinkedIn,
   listarPaginasMeta,
+  listarPerfilTikTok,
 } from "@/lib/marketing-api";
 
 function formatarExpira(value: string | null) {
@@ -25,6 +28,7 @@ function MarketingContasContent() {
   const [contas, setContas] = useState<ContaSocial[]>([]);
   const [paginasMeta, setPaginasMeta] = useState<MetaPagina[]>([]);
   const [orgsLinkedIn, setOrgsLinkedIn] = useState<LinkedInOrganizacao[]>([]);
+  const [perfisTikTok, setPerfisTikTok] = useState<TikTokPerfil[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
@@ -62,6 +66,12 @@ function MarketingContasContent() {
         .then((d) => setOrgsLinkedIn(d.organizacoes))
         .catch(() => setErro("Sessão LinkedIn expirada — tente ligar novamente"));
       setMensagem("Seleccione a organização LinkedIn a ligar.");
+    }
+    if (oauth === "tiktok") {
+      listarPerfilTikTok()
+        .then((d) => setPerfisTikTok(d.perfis))
+        .catch(() => setErro("Sessão TikTok expirada — tente ligar novamente"));
+      setMensagem("Seleccione a conta TikTok a ligar.");
     }
   }, [searchParams]);
 
@@ -120,6 +130,21 @@ function MarketingContasContent() {
     }
   }
 
+  async function ligarTikTok(perfil: TikTokPerfil) {
+    try {
+      await ligarContaTikTok({
+        open_id: perfil.open_id,
+        display_name: perfil.display_name,
+        access_token: "",
+      });
+      setPerfisTikTok([]);
+      setMensagem("Conta TikTok ligada com sucesso.");
+      carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao ligar");
+    }
+  }
+
   async function desligar(id: number) {
     if (!confirm("Desligar esta conta?")) return;
     try {
@@ -159,6 +184,13 @@ function MarketingContasContent() {
           className="rounded-lg bg-sky-800 px-4 py-2 text-sm text-white"
         >
           Ligar LinkedIn
+        </button>
+        <button
+          type="button"
+          onClick={() => iniciarOAuthTikTok()}
+          className="rounded-lg bg-black px-4 py-2 text-sm text-white"
+        >
+          Ligar TikTok
         </button>
       </div>
 
@@ -219,11 +251,34 @@ function MarketingContasContent() {
         </div>
       )}
 
+      {perfisTikTok.length > 0 && (
+        <div className="mb-6 rounded-xl border bg-white p-4">
+          <h3 className="mb-3 font-medium">Contas TikTok</h3>
+          <div className="space-y-2">
+            {perfisTikTok.map((perfil) => (
+              <div
+                key={perfil.open_id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2"
+              >
+                <span className="text-sm">{perfil.display_name}</span>
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs hover:bg-slate-50"
+                  onClick={() => ligarTikTok(perfil)}
+                >
+                  Ligar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-sm text-slate-500">A carregar…</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-3">
-          {(["FACEBOOK", "INSTAGRAM", "LINKEDIN"] as Plataforma[]).map((plataforma) => (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {(["FACEBOOK", "INSTAGRAM", "LINKEDIN", "TIKTOK"] as Plataforma[]).map((plataforma) => (
             <div key={plataforma} className="rounded-xl border bg-white p-4">
               <div className="mb-3">
                 <PlatformBadge plataforma={plataforma} />

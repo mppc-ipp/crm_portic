@@ -15,6 +15,9 @@ class MarketingConfig:
     linkedin_client_id: str
     linkedin_client_secret: str
     linkedin_redirect_uri: str
+    tiktok_client_key: str
+    tiktok_client_secret: str
+    tiktok_redirect_uri: str
     media_public_base_url: str
     dry_run: bool
 
@@ -56,6 +59,16 @@ def get_marketing_config() -> MarketingConfig:
             cfg.marketing_linkedin_redirect_uri
             or dj_settings.LINKEDIN_REDIRECT_URI
             or f"{api_base}/api/marketing/oauth/linkedin/callback"
+        ),
+        tiktok_client_key=cfg.marketing_tiktok_client_key or dj_settings.TIKTOK_CLIENT_KEY,
+        tiktok_client_secret=_secret_from_db(
+            cfg.marketing_tiktok_client_secret,
+            dj_settings.TIKTOK_CLIENT_SECRET,
+        ),
+        tiktok_redirect_uri=(
+            cfg.marketing_tiktok_redirect_uri
+            or dj_settings.TIKTOK_REDIRECT_URI
+            or f"{api_base}/api/marketing/oauth/tiktok/callback"
         ),
         media_public_base_url=(
             cfg.marketing_media_public_base_url

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from urllib.parse import urlencode
 
@@ -102,8 +103,43 @@ def publicar_facebook(
     if get_marketing_config().dry_run:
         return f"dry_run_fb_{page_id}"
 
-    media_urls = media_urls or []
-    if media_urls:
+    media_urls = [url for url in (media_urls or []) if url]
+
+    if len(media_urls) > 1:
+        attached: list[dict[str, str]] = []
+        for media_url in media_urls[:10]:
+            photo_resp = requests.post(
+                f"{GRAPH_API}/{page_id}/photos",
+                data={
+                    "url": media_url,
+                    "published": "false",
+                    "access_token": page_token,
+                },
+                timeout=60,
+            )
+            photo_data = photo_resp.json()
+            if photo_resp.status_code >= 400 or "id" not in photo_data:
+                raise MetaAPIError("Falha ao carregar foto para carrossel Facebook", photo_data)
+            attached.append({"media_fbid": str(photo_data["id"])})
+
+        feed_payload: dict = {
+            "message": texto,
+            "access_token": page_token,
+        }
+        for index, item in enumerate(attached):
+            feed_payload[f"attached_media[{index}]"] = json.dumps(item)
+
+        resp = requests.post(
+            f"{GRAPH_API}/{page_id}/feed",
+            data=feed_payload,
+            timeout=60,
+        )
+        data = resp.json()
+        if resp.status_code >= 400 or "id" not in data:
+            raise MetaAPIError("Falha ao publicar carrossel no Facebook", data)
+        return str(data["id"])
+
+    if len(media_urls) == 1:
         url = f"{GRAPH_API}/{page_id}/photos"
         payload: dict = {"url": media_urls[0], "access_token": page_token}
         if texto:

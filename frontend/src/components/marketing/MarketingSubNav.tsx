@@ -13,12 +13,17 @@ const LINKS = [
 export default function MarketingSubNav() {
   const pathname = usePathname();
 
+  const activeHref =
+    LINKS.filter((link) =>
+      link.exact
+        ? pathname === link.href
+        : pathname === link.href || pathname.startsWith(`${link.href}/`)
+    ).sort((a, b) => b.href.length - a.href.length)[0]?.href ?? "";
+
   return (
     <nav className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
       {LINKS.map((link) => {
-        const active = link.exact
-          ? pathname === link.href
-          : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active = link.href === activeHref;
         return (
           <Link
             key={link.href}

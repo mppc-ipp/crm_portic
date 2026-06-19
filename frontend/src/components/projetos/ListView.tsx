@@ -102,6 +102,11 @@ export default function ListView({
                         }`}
                       >
                         {obj.titulo}
+                        {obj.urgente && (
+                          <span className="ml-2 inline-block rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            urgente
+                          </span>
+                        )}
                         {(obj.subtarefas_total ?? 0) > 0 && (
                           <span className="ml-2 text-[10px] text-slate-400">
                             ☑ {obj.subtarefas_concluidas}/{obj.subtarefas_total}

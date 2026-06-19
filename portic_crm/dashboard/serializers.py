@@ -67,6 +67,7 @@ class EventoSerializer(serializers.ModelSerializer):
     tipo_display = serializers.CharField(source="tipo.nome", read_only=True)
     tipo_cor = serializers.CharField(source="tipo.cor", read_only=True)
     tipo_codigo = serializers.CharField(source="tipo.codigo", read_only=True)
+    empresa_nome = serializers.CharField(source="empresa.nome", read_only=True)
     anexos = AnexoEventoSerializer(many=True, read_only=True)
     passado = serializers.SerializerMethodField()
     editable = serializers.SerializerMethodField()
@@ -84,6 +85,8 @@ class EventoSerializer(serializers.ModelSerializer):
             "data_fim",
             "descricao",
             "particular",
+            "empresa",
+            "empresa_nome",
             "anexos",
             "passado",
             "editable",
@@ -120,6 +123,15 @@ class EventoSerializer(serializers.ModelSerializer):
     def validate_tipo(self, value):
         if not value.ativo:
             raise serializers.ValidationError("O tipo de evento seleccionado está inativo.")
+        return value
+
+    def validate_empresa(self, value):
+        if value is None:
+            return value
+        from portic_crm.empresas.models import Empresa
+
+        if not Empresa.objects.filter(pk=value.pk).exists():
+            raise serializers.ValidationError("Empresa inválida.")
         return value
 
     def validate(self, data):

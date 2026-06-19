@@ -22,6 +22,10 @@ from portic_crm.dashboard.serializers import (
     evento_para_calendario,
     validar_ficheiro_anexo,
 )
+from portic_crm.dashboard.services.empresa_interacao import (
+    registar_interacao_empresa_evento,
+    sincronizar_interacao_empresa_evento,
+)
 from portic_crm.empresas.models import Empresa
 from portic_crm.espacos.models import ModuloEspaco, PedidoReserva, StatusPedidoReserva
 from portic_crm.projetos.models import EstadoObjetivo, Objetivo
@@ -107,7 +111,7 @@ class DashboardAPIView(APIView):
                 "data_inicio": e.data_inicio.isoformat(),
                 "data_fim": e.data_fim.isoformat(),
             }
-            for e in Evento.visiveis_no_dashboard(user)[:10]
+            for e in Evento.proximos_eventos(user)[:10]
         ]
 
         if request.query_params.get("format") == "csv":
@@ -124,9 +128,9 @@ class DashboardAPIView(APIView):
                 "dashboard_resumo.csv",
                 [("metrica", "Métrica"), ("valor", "Valor")],
                 rows,
+                actor=request.user,
+                modulo="dashboard",
             )
-
-        return Response(payload)
 
 
 def _pode_ver_eventos(user) -> bool:
@@ -194,7 +198,8 @@ class EventoViewSet(viewsets.ModelViewSet):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
         response = super().create(request, *args, **kwargs)
         if response.status_code == status.HTTP_201_CREATED:
-            evento = Evento.objects.get(pk=response.data["id"])
+            evento = Evento.objects.select_related("tipo", "empresa").get(pk=response.data["id"])
+            registar_interacao_empresa_evento(evento, request.user)
             registar_auditoria(
                 AcaoAuditoria.EVENTO_CRIADO,
                 f"Criou evento «{evento.titulo}»",
@@ -214,6 +219,8 @@ class EventoViewSet(viewsets.ModelViewSet):
             )
         response = super().update(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
+            evento = Evento.objects.select_related("tipo", "empresa").get(pk=evento.pk)
+            sincronizar_interacao_empresa_evento(evento, request.user)
             registar_auditoria(
                 AcaoAuditoria.EVENTO_EDITADO,
                 f"Editou evento «{evento.titulo}»",

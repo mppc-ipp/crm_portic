@@ -10,9 +10,11 @@ from portic_crm.marketing.models import (
     Publicacao,
     PublicacaoDestino,
     PublicacaoLog,
+    TipoMidia,
 )
 from portic_crm.marketing.services import linkedin as li_svc
 from portic_crm.marketing.services import meta as meta_svc
+from portic_crm.marketing.services import tiktok as tiktok_svc
 from portic_crm.marketing.services.config import get_marketing_config
 from portic_crm.marketing.services.tokens import desencriptar_token
 
@@ -22,6 +24,15 @@ def _media_urls(publicacao: Publicacao) -> list[str]:
     for midia in publicacao.midias.all():
         if midia.ficheiro:
             base = get_marketing_config().media_public_base_url.rstrip("/")
+            urls.append(f"{base}{midia.ficheiro.url}")
+    return urls
+
+
+def _image_media_urls(publicacao: Publicacao) -> list[str]:
+    base = get_marketing_config().media_public_base_url.rstrip("/")
+    urls: list[str] = []
+    for midia in publicacao.midias.order_by("ordem"):
+        if midia.tipo == TipoMidia.IMAGEM and midia.ficheiro:
             urls.append(f"{base}{midia.ficheiro.url}")
     return urls
 
@@ -56,7 +67,7 @@ def publicar_destino(destino: PublicacaoDestino) -> None:
     destino.save(update_fields=["estado", "updated_at"])
 
     try:
-        media_urls = _media_urls(publicacao)
+        image_urls = _image_media_urls(publicacao)
         post_id = ""
 
         if destino.plataforma == PlataformaSocial.FACEBOOK:
@@ -66,17 +77,29 @@ def publicar_destino(destino: PublicacaoDestino) -> None:
                 token,
                 publicacao.texto,
                 publicacao.link_url,
-                media_urls=media_urls,
+                media_urls=image_urls,
             )
 
         elif destino.plataforma == PlataformaSocial.INSTAGRAM:
             ig_id = destino.conta.metadata.get("ig_user_id") or destino.conta.external_id
-            post_id = meta_svc.publicar_instagram(ig_id, token, publicacao.texto, media_urls)
+            post_id = meta_svc.publicar_instagram(ig_id, token, publicacao.texto, image_urls)
 
         elif destino.plataforma == PlataformaSocial.LINKEDIN:
             org_urn = destino.conta.metadata.get("org_urn") or destino.conta.external_id
-            media_url = media_urls[0] if media_urls else ""
-            post_id = li_svc.publicar_linkedin(org_urn, token, publicacao.texto, media_url)
+            post_id = li_svc.publicar_linkedin(org_urn, token, publicacao.texto, image_urls)
+
+        elif destino.plataforma == PlataformaSocial.TIKTOK:
+            midias = list(publicacao.midias.order_by("ordem"))
+            media_urls = _media_urls(publicacao)
+            video_url = ""
+            for midia, url in zip(midias, media_urls):
+                if midia.tipo == TipoMidia.VIDEO:
+                    video_url = url
+                    break
+            if not video_url:
+                raise tiktok_svc.TikTokAPIError("TikTok exige pelo menos um vídeo")
+            open_id = destino.conta.metadata.get("open_id") or destino.conta.external_id
+            post_id = tiktok_svc.publicar_video(token, open_id, publicacao.texto, video_url)
 
         destino.estado = EstadoDestino.PUBLICADO
         destino.external_post_id = post_id
@@ -91,7 +114,7 @@ def publicar_destino(destino: PublicacaoDestino) -> None:
             f"Publicado em {destino.get_plataforma_display()}",
             {"destino_id": destino.id, "external_post_id": post_id},
         )
-    except (meta_svc.MetaAPIError, li_svc.LinkedInAPIError) as exc:
+    except (meta_svc.MetaAPIError, li_svc.LinkedInAPIError, tiktok_svc.TikTokAPIError) as exc:
         destino.estado = EstadoDestino.FALHOU
         destino.erro = str(exc)[:2000]
         destino.save(update_fields=["estado", "erro", "updated_at"])

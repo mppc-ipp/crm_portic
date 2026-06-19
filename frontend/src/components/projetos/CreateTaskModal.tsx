@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { T } from "./constants";
+import EmpresaPicker from "./EmpresaPicker";
 import type { Atribuivel } from "./types";
 import { parseAtribuicaoKey } from "./utils";
 
@@ -11,6 +12,8 @@ export type NovaTarefaData = {
   data_limite: string | null;
   responsavel: number | null;
   responsavel_email: string;
+  empresa: number | null;
+  urgente: boolean;
 };
 
 type Props = {
@@ -25,6 +28,9 @@ export default function CreateTaskModal({ secaoNome, atribuiveis, onClose, onCre
   const [descricao, setDescricao] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [atribuicao, setAtribuicao] = useState("");
+  const [empresaId, setEmpresaId] = useState<number | null>(null);
+  const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  const [urgente, setUrgente] = useState(false);
   const [aGuardar, setAGuardar] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -49,6 +55,8 @@ export default function CreateTaskModal({ secaoNome, atribuiveis, onClose, onCre
         data_limite: dataLimite || null,
         responsavel,
         responsavel_email,
+        empresa: empresaId,
+        urgente,
       });
       onClose();
     } catch (err) {
@@ -136,6 +144,30 @@ export default function CreateTaskModal({ secaoNome, atribuiveis, onClose, onCre
               )}
             </label>
           </div>
+
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Empresa (opcional)</span>
+            <div className="mt-1">
+              <EmpresaPicker
+                value={empresaId}
+                label={empresaNome}
+                onChange={(id, nome) => {
+                  setEmpresaId(id);
+                  setEmpresaNome(nome);
+                }}
+              />
+            </div>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={urgente}
+              onChange={(e) => setUrgente(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+            />
+            <span className="text-sm font-medium text-slate-700">Urgente</span>
+          </label>
 
           {erro && <p className="text-sm text-red-600">{erro}</p>}
 

@@ -1,11 +1,14 @@
 import { apiFetch, API_URL, withAuthHeaders } from "@/lib/api";
+import type { CSSProperties } from "react";
 import type {
   CalendarioEvento,
   ContaSocial,
+  CorEstadoPublicacao,
   EstatisticasMarketing,
   LinkedInOrganizacao,
   MetaPagina,
   Publicacao,
+  TikTokPerfil,
 } from "@/components/marketing/types";
 
 export async function listarPublicacoes(params?: Record<string, string>) {
@@ -74,6 +77,23 @@ export async function obterEstatisticas() {
   return apiFetch<EstatisticasMarketing>("/api/marketing/estatisticas");
 }
 
+export async function listarCoresEstadosPublicacao() {
+  return apiFetch<CorEstadoPublicacao[]>("/api/marketing/estados-publicacao");
+}
+
+export async function obterMapaCoresEstadosPublicacao() {
+  const list = await listarCoresEstadosPublicacao();
+  return Object.fromEntries(list.map((c) => [c.codigo, c.cor]));
+}
+
+export function estiloEstadoPublicacao(cor: string): CSSProperties {
+  return {
+    backgroundColor: `${cor}22`,
+    color: cor,
+    borderColor: `${cor}55`,
+  };
+}
+
 export async function uploadMedia(ficheiro: File, publicacaoId?: number, ordem = 0) {
   const form = new FormData();
   form.append("ficheiro", ficheiro);
@@ -91,6 +111,10 @@ export async function uploadMedia(ficheiro: File, publicacaoId?: number, ordem =
     throw new Error((err as { error?: string }).error || "Falha no upload");
   }
   return res.json() as Promise<{ publicacao_id: number; midia: { id: number; url: string } }>;
+}
+
+export async function eliminarMedia(id: number) {
+  return apiFetch(`/api/marketing/media/${id}`, { method: "DELETE" });
 }
 
 export async function iniciarOAuthMeta() {
@@ -122,6 +146,22 @@ export async function ligarContaMeta(payload: Record<string, string>) {
 
 export async function ligarContaLinkedIn(payload: Record<string, string>) {
   return apiFetch<ContaSocial>("/api/marketing/oauth/linkedin/ligar", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function iniciarOAuthTikTok() {
+  const data = await apiFetch<{ url: string }>("/api/marketing/oauth/tiktok/start");
+  window.location.href = data.url;
+}
+
+export async function listarPerfilTikTok() {
+  return apiFetch<{ perfis: TikTokPerfil[] }>("/api/marketing/contas/disponiveis/tiktok");
+}
+
+export async function ligarContaTikTok(payload: Record<string, string>) {
+  return apiFetch<ContaSocial>("/api/marketing/oauth/tiktok/ligar", {
     method: "POST",
     body: JSON.stringify(payload),
   });

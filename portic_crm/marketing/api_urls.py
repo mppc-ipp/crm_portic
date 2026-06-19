@@ -10,6 +10,7 @@ from portic_crm.marketing.api_views import (
     MarketingCalendarioAPIView,
     MarketingEstatisticasAPIView,
     MarketingMediaAPIView,
+    MarketingMediaDetailAPIView,
     MetaOAuthCallbackAPIView,
     MetaOAuthDisponiveisAPIView,
     MetaOAuthLigarAPIView,
@@ -19,6 +20,10 @@ from portic_crm.marketing.api_views import (
     PublicacaoPublicarAPIView,
     PublicacaoRepublicarAPIView,
     PublicacaoViewSet,
+    TikTokOAuthCallbackAPIView,
+    TikTokOAuthDisponiveisAPIView,
+    TikTokOAuthLigarAPIView,
+    TikTokOAuthStartAPIView,
 )
 
 publicacao_list = PublicacaoViewSet.as_view({"get": "list", "post": "create"})
@@ -38,7 +43,9 @@ urlpatterns = [
     path("marketing/contas/<int:pk>", ContaSocialDeleteAPIView.as_view()),
     path("marketing/contas/disponiveis/meta", MetaOAuthDisponiveisAPIView.as_view()),
     path("marketing/contas/disponiveis/linkedin", LinkedInOAuthDisponiveisAPIView.as_view()),
+    path("marketing/contas/disponiveis/tiktok", TikTokOAuthDisponiveisAPIView.as_view()),
     path("marketing/media", MarketingMediaAPIView.as_view()),
+    path("marketing/media/<int:pk>", MarketingMediaDetailAPIView.as_view()),
     path("marketing/calendario", MarketingCalendarioAPIView.as_view()),
     path("marketing/estatisticas", MarketingEstatisticasAPIView.as_view()),
     path("marketing/oauth/meta/start", MetaOAuthStartAPIView.as_view()),
@@ -47,4 +54,7 @@ urlpatterns = [
     path("marketing/oauth/linkedin/start", LinkedInOAuthStartAPIView.as_view()),
     path("marketing/oauth/linkedin/callback", LinkedInOAuthCallbackAPIView.as_view()),
     path("marketing/oauth/linkedin/ligar", LinkedInOAuthLigarAPIView.as_view()),
+    path("marketing/oauth/tiktok/start", TikTokOAuthStartAPIView.as_view()),
+    path("marketing/oauth/tiktok/callback", TikTokOAuthCallbackAPIView.as_view()),
+    path("marketing/oauth/tiktok/ligar", TikTokOAuthLigarAPIView.as_view()),
 ]

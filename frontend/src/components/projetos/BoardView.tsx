@@ -86,6 +86,11 @@ export default function BoardView({
                   }`}
                 >
                   {obj.titulo}
+                  {obj.urgente && (
+                    <span className="ml-2 inline-block rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      urgente
+                    </span>
+                  )}
                 </p>
                 {((obj.subtarefas_total ?? 0) > 0 || (obj.comentarios_total ?? 0) > 0) && (
                   <p className="mt-1 text-[10px] text-slate-400">

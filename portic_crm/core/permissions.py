@@ -21,6 +21,20 @@ def is_utilizador_comum(user) -> bool:
     return user_in_group(user, settings.GRUPO_UTILIZADOR_COMUM) and not is_admin_geral(user)
 
 
+def is_gestor(user) -> bool:
+    if not user.is_authenticated:
+        return False
+    if is_admin_geral(user):
+        return True
+    if user_in_group(user, settings.GRUPO_GESTOR):
+        return True
+    return user.has_perm("teletrabalho.gerir_teletrabalho")
+
+
+def is_gestor_teletrabalho(user) -> bool:
+    return is_gestor(user)
+
+
 def get_login_redirect_url(user) -> str:
     if user.has_perm("dashboard.view_dashboard") or is_admin_geral(user):
         return "/dashboard/"
@@ -32,6 +46,8 @@ def get_login_redirect_url(user) -> str:
         return "/projetos/"
     if user.has_perm("marketing.view_publicacao"):
         return "/marketing/"
+    if user.has_perm("teletrabalho.view_teletrabalho"):
+        return "/teletrabalho/"
     if user.has_perm("administrador.gerir_utilizadores"):
         return "/administrador/"
     return "/dashboard/"
@@ -44,6 +60,7 @@ MODULE_PERMISSIONS = {
     "dashboard": "dashboard.view_dashboard",
     "administrador": "administrador.gerir_utilizadores",
     "marketing": "marketing.view_publicacao",
+    "teletrabalho": "teletrabalho.view_teletrabalho",
 }
 
 # Permissões granulares expostas na UI de administração
@@ -98,6 +115,13 @@ PERMISSION_CATALOG = {
             ("marketing.delete_publicacao", "Eliminar publicações"),
             ("marketing.publicar", "Publicar e agendar"),
             ("marketing.gerir_contas", "Ligar contas sociais"),
+        ],
+    },
+    "teletrabalho": {
+        "label": "Teletrabalho",
+        "permissions": [
+            ("teletrabalho.view_teletrabalho", "Ver teletrabalho"),
+            ("teletrabalho.gerir_teletrabalho", "Gerir registos de teletrabalho"),
         ],
     },
 }

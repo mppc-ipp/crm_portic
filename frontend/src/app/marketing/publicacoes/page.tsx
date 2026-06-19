@@ -108,6 +108,7 @@ export default function MarketingPublicacoesPage() {
             <option value="FACEBOOK">Facebook</option>
             <option value="INSTAGRAM">Instagram</option>
             <option value="LINKEDIN">LinkedIn</option>
+            <option value="TIKTOK">TikTok</option>
           </select>
         </div>
         <button type="button" onClick={carregar} className="rounded-lg bg-portic px-4 py-2 text-sm text-white">

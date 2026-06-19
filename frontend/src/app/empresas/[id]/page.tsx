@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import ExportCsvButton from "@/components/reports/ExportCsvButton";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getStoredUser } from "@/lib/api";
 
 type Contacto = { id: number; nome: string; cargo: string; email: string; telefone: string };
 type ContactoForm = { nome: string; cargo: string; email: string; telefone: string };
@@ -36,6 +36,7 @@ type Interacao = {
   data: string | null;
   conteudo: string;
   registado_por_nome: string | null;
+  evento_id: number | null;
   created_at: string;
 };
 
@@ -65,8 +66,12 @@ const ESTADOS = [
 
 const CONTACTO_VAZIO: ContactoForm = { nome: "", cargo: "", email: "", telefone: "" };
 
+type OrdenacaoDataInteracao = "desc" | "asc";
+
 const inputClass = "mt-1 w-full rounded-lg border px-3 py-2";
 const labelClass = "block text-sm text-slate-600";
+const filtroLabelClass = "block text-xs font-medium text-slate-600";
+const filtroInputClass = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm";
 
 function formatCodigoPostal(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 7);
@@ -93,6 +98,57 @@ function formatarDataHora(value: string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function normalizarPesquisa(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function dataEfetivaInteracao(interacao: Interacao) {
+  return interacao.data ?? interacao.created_at.slice(0, 10);
+}
+
+function interacaoCorrespondeData(interacao: Interacao, dataFiltro: string) {
+  return dataEfetivaInteracao(interacao) === dataFiltro;
+}
+
+function interacaoCorrespondePesquisa(interacao: Interacao, pesquisa: string) {
+  const termo = normalizarPesquisa(pesquisa);
+  if (!termo) return true;
+
+  const valores = [
+    interacao.conteudo,
+    interacao.tipo_display,
+    interacao.registado_por_nome ?? "",
+  ];
+
+  return valores.some((valor) => normalizarPesquisa(valor).includes(termo));
+}
+
+function filtrarEOrdenarInteracoes(
+  interacoes: Interacao[],
+  pesquisa: string,
+  tipo: string,
+  data: string,
+  ordenacao: OrdenacaoDataInteracao
+) {
+  const filtradas = interacoes.filter((interacao) => {
+    if (tipo && interacao.tipo !== tipo) return false;
+    if (data && !interacaoCorrespondeData(interacao, data)) return false;
+    if (!interacaoCorrespondePesquisa(interacao, pesquisa)) return false;
+    return true;
+  });
+
+  return [...filtradas].sort((a, b) => {
+    const cmpData = dataEfetivaInteracao(a).localeCompare(dataEfetivaInteracao(b));
+    if (cmpData !== 0) return ordenacao === "asc" ? cmpData : -cmpData;
+    const cmpCriacao = a.created_at.localeCompare(b.created_at);
+    return ordenacao === "asc" ? cmpCriacao : -cmpCriacao;
   });
 }
 
@@ -163,6 +219,36 @@ export default function EmpresaDetailPage() {
     conteudo: "",
   });
   const [erroInteracao, setErroInteracao] = useState("");
+  const [pesquisaInteracao, setPesquisaInteracao] = useState("");
+  const [filtroTipoInteracao, setFiltroTipoInteracao] = useState("");
+  const [filtroDataInteracao, setFiltroDataInteracao] = useState("");
+  const [ordenacaoDataInteracao, setOrdenacaoDataInteracao] =
+    useState<OrdenacaoDataInteracao>("desc");
+
+  const interacoesFiltradas = useMemo(
+    () =>
+      filtrarEOrdenarInteracoes(
+        interacoes,
+        pesquisaInteracao,
+        filtroTipoInteracao,
+        filtroDataInteracao,
+        ordenacaoDataInteracao
+      ),
+    [
+      interacoes,
+      pesquisaInteracao,
+      filtroTipoInteracao,
+      filtroDataInteracao,
+      ordenacaoDataInteracao,
+    ]
+  );
+
+  const filtrosInteracaoAtivos = Boolean(
+    pesquisaInteracao ||
+      filtroTipoInteracao ||
+      filtroDataInteracao ||
+      ordenacaoDataInteracao !== "desc"
+  );
 
   const carregarEmpresa = useCallback(async () => {
     if (!params.id) return;
@@ -320,6 +406,9 @@ export default function EmpresaDetailPage() {
 
   if (!empresa) return <p>A carregar…</p>;
 
+  const user = getStoredUser();
+  const podeGerirEventos = Boolean(user?.admin_geral || user?.permissoes?.gerir_eventos);
+
   const moradaCompleta = [
     empresa.morada,
     empresa.codigo_postal,
@@ -347,13 +436,23 @@ export default function EmpresaDetailPage() {
             {empresa.setor && ` · ${empresa.setor}`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={abrirEditarEmpresa}
-          className="rounded-lg border border-portic px-4 py-2 text-sm font-medium text-portic hover:bg-portic/5"
-        >
-          Editar empresa
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={abrirEditarEmpresa}
+            className="rounded-lg border border-portic px-4 py-2 text-sm font-medium text-portic hover:bg-portic/5"
+          >
+            Editar empresa
+          </button>
+          {podeGerirEventos && (
+            <Link
+              href={`/dashboard/eventos?empresa=${empresa.id}`}
+              className="rounded-lg bg-portic px-4 py-2 text-sm font-medium text-white hover:bg-portic/90"
+            >
+              Adicionar evento
+            </Link>
+          )}
+        </div>
       </div>
 
       {(empresa.email || empresa.telefone) && (
@@ -385,12 +484,32 @@ export default function EmpresaDetailPage() {
       </ul>
 
       <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">Interações</h2>
+        <div>
+          <h2 className="font-semibold">Interações</h2>
+          {interacoes.length > 0 && (
+            <p className="mt-0.5 text-xs text-slate-500">
+              {filtrosInteracaoAtivos
+                ? `${interacoesFiltradas.length} de ${interacoes.length} interações`
+                : `${interacoes.length} interação${interacoes.length === 1 ? "" : "ões"}`}
+            </p>
+          )}
+        </div>
         <ExportCsvButton
           filename={`empresa_${params.id}_interacoes.csv`}
-          apiPath={`/api/empresas/${params.id}/interacoes`}
+          rows={interacoesFiltradas}
+          columns={[
+            {
+              key: "data",
+              header: "Data",
+              format: (row) => formatarData(row.data) ?? formatarData(row.created_at.slice(0, 10)) ?? "",
+            },
+            { key: "tipo_display", header: "Tipo" },
+            { key: "conteudo", header: "Conteúdo" },
+            { key: "registado_por_nome", header: "Registado por" },
+          ]}
         />
       </div>
+
       <form onSubmit={registarInteracao} className="mb-6 space-y-3 rounded-xl border bg-white p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={labelClass}>
@@ -438,8 +557,79 @@ export default function EmpresaDetailPage() {
         </button>
       </form>
 
+      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-slate-700">Filtrar interações</p>
+          {filtrosInteracaoAtivos && (
+            <button
+              type="button"
+              onClick={() => {
+                setPesquisaInteracao("");
+                setFiltroTipoInteracao("");
+                setFiltroDataInteracao("");
+                setOrdenacaoDataInteracao("desc");
+              }}
+              className="text-xs font-medium text-portic hover:underline"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3">
+          <label className={filtroLabelClass}>
+            Pesquisar
+            <input
+              type="search"
+              value={pesquisaInteracao}
+              onChange={(e) => setPesquisaInteracao(e.target.value)}
+              placeholder="Texto, tipo ou registado por…"
+              className={filtroInputClass}
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className={filtroLabelClass}>
+              Tipo
+              <select
+                value={filtroTipoInteracao}
+                onChange={(e) => setFiltroTipoInteracao(e.target.value)}
+                className={filtroInputClass}
+              >
+                <option value="">Todos</option>
+                {tiposInteracao.map((t) => (
+                  <option key={t.codigo} value={t.codigo}>
+                    {t.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={filtroLabelClass}>
+              Data
+              <input
+                type="date"
+                value={filtroDataInteracao}
+                onChange={(e) => setFiltroDataInteracao(e.target.value)}
+                className={filtroInputClass}
+              />
+            </label>
+            <label className={filtroLabelClass}>
+              Ordenar por data
+              <select
+                value={ordenacaoDataInteracao}
+                onChange={(e) =>
+                  setOrdenacaoDataInteracao(e.target.value as OrdenacaoDataInteracao)
+                }
+                className={filtroInputClass}
+              >
+                <option value="desc">Mais recente primeiro</option>
+                <option value="asc">Mais antiga primeiro</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-3">
-        {interacoes.map((i) => (
+        {interacoesFiltradas.map((i) => (
           <article key={i.id} className="rounded-lg border bg-white p-4 text-sm">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -451,20 +641,31 @@ export default function EmpresaDetailPage() {
                 {i.registado_por_nome && <span>por {i.registado_por_nome}</span>}
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => abrirEditarInteracao(i)}
-                  className="text-xs font-medium text-portic hover:underline"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => excluirInteracao(i)}
-                  className="text-xs font-medium text-red-600 hover:underline"
-                >
-                  Excluir
-                </button>
+                {i.evento_id ? (
+                  <Link
+                    href={`/dashboard/eventos?evento=${i.evento_id}`}
+                    className="text-xs font-medium text-portic hover:underline"
+                  >
+                    Ver evento
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => abrirEditarInteracao(i)}
+                      className="text-xs font-medium text-portic hover:underline"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => excluirInteracao(i)}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Excluir
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <p className="whitespace-pre-wrap text-slate-800">{i.conteudo}</p>
@@ -472,6 +673,9 @@ export default function EmpresaDetailPage() {
         ))}
         {interacoes.length === 0 && (
           <p className="text-sm text-slate-500">Ainda não há interações registadas.</p>
+        )}
+        {interacoes.length > 0 && interacoesFiltradas.length === 0 && (
+          <p className="text-sm text-slate-500">Nenhuma interação corresponde aos filtros aplicados.</p>
         )}
       </div>
 

@@ -20,6 +20,22 @@ from portic_crm.espacos.models import (
     VisibilidadeRecurso,
 )
 
+_ACOES_AUDITORIA_RESERVA = {
+    "CRIADO": "ESPACO_RESERVA_CRIADA",
+    "APROVADO": "ESPACO_RESERVA_APROVADA",
+    "REJEITADO": "ESPACO_RESERVA_REJEITADA",
+    "CANCELADO": "ESPACO_RESERVA_CANCELADA",
+}
+
+
+def _auditar_reserva_global(pedido: PedidoReserva, acao: str, descricao: str, user=None):
+    from portic_crm.core.audit import registar_auditoria
+
+    codigo = _ACOES_AUDITORIA_RESERVA.get(acao)
+    if not codigo:
+        return
+    registar_auditoria(codigo, descricao, actor=user, alvo=pedido)
+
 
 def tem_conflito(sala=None, viatura=None, data_inicio=None, data_fim=None, excluir_id=None):
     if not data_inicio or not data_fim:
@@ -94,6 +110,7 @@ def criar_pedido_com_ocorrencias(user, criado_por, titulo, descricao, numero_pes
         acao="CRIADO",
         descricao="Pedido de reserva criado",
     )
+    _auditar_reserva_global(pedido, "CRIADO", f"Pedido «{pedido.titulo}» criado", criado_por)
     _criar_tokens_email(pedido)
     from portic_crm.core.notifications import notificar_reserva_pendente
 
@@ -125,8 +142,9 @@ def _enviar_email_pedido(pedido: PedidoReserva):
         f"<h2>Novo pedido de reserva</h2>"
         f"<p>{pedido.utilizador.username}</p>"
         f"<p>{pedido.titulo}</p><ul>{horarios}</ul>"
-        f"<p><a href='{api_base}{prefix}/reservas/aprovar?token={tokens.get('APROVAR','')}'>Aprovar</a> | "
-        f"<a href='{api_base}{prefix}/reservas/rejeitar?token={tokens.get('REJEITAR','')}'>Rejeitar</a></p>"
+        f"<p>Confirme a acção no link abaixo (não aprova automaticamente ao abrir o email):</p>"
+        f"<p><a href='{api_base}{prefix}/reservas/aprovar?token={tokens.get('APROVAR','')}'>Aprovar pedido</a> | "
+        f"<a href='{api_base}{prefix}/reservas/rejeitar?token={tokens.get('REJEITAR','')}'>Rejeitar pedido</a></p>"
         f"<p><a href='{web_base}/admin/reservas/{pedido.id}'>Painel</a></p>"
     )
     send_mail(
@@ -159,6 +177,7 @@ def aprovar_pedido(pedido: PedidoReserva, user):
         acao="APROVADO",
         descricao="Pedido aprovado",
     )
+    _auditar_reserva_global(pedido, "APROVADO", f"Pedido «{pedido.titulo}» aprovado", user)
 
 
 def rejeitar_pedido(pedido: PedidoReserva, user, observacao=""):
@@ -173,6 +192,9 @@ def rejeitar_pedido(pedido: PedidoReserva, user, observacao=""):
         acao="REJEITADO",
         descricao=observacao or "Pedido rejeitado",
     )
+    _auditar_reserva_global(
+        pedido, "REJEITADO", observacao or f"Pedido «{pedido.titulo}» rejeitado", user
+    )
 
 
 def cancelar_pedido(pedido: PedidoReserva, user):
@@ -185,6 +207,7 @@ def cancelar_pedido(pedido: PedidoReserva, user):
         acao="CANCELADO",
         descricao="Pedido cancelado",
     )
+    _auditar_reserva_global(pedido, "CANCELADO", f"Pedido «{pedido.titulo}» cancelado", user)
 
 
 def processar_token(acao: str, token_str: str):

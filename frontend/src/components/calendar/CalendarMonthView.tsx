@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import { pt } from "date-fns/locale";
-import { classeEventoCalendario, estiloTipoEvento } from "@/lib/eventos";
+import { classeEventoCalendario, estiloTipoEvento, eventoIntersectaDia } from "@/lib/eventos";
 import { EventoCalendario } from "@/lib/types";
 
 type Props = {
@@ -34,7 +34,7 @@ export default function CalendarMonthView({ baseDate, eventos, onSelectDay, onEv
   return (
     <div className="grid grid-cols-7 gap-2">
       {days.map((d) => {
-        const dayEvents = eventos.filter((e) => isSameDay(new Date(e.dataInicio), d));
+        const dayEvents = eventos.filter((e) => eventoIntersectaDia(e.dataInicio, e.dataFim, d));
         return (
           <div
             key={d.toISOString()}

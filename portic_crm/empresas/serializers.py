@@ -24,6 +24,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
     contactos = ContactoCreateSerializer(many=True, required=False)
     tipo_display = serializers.CharField(source="get_tipo_display", read_only=True)
     estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+    ultima_interacao = serializers.SerializerMethodField()
 
     class Meta:
         model = Empresa
@@ -46,7 +47,13 @@ class EmpresaSerializer(serializers.ModelSerializer):
             "distrito",
             "contactos",
             "created_at",
+            "ultima_interacao",
         ]
+
+    def get_ultima_interacao(self, obj):
+        from portic_crm.empresas.services.ultima_interacao import calcular_ultima_interacao
+
+        return calcular_ultima_interacao(obj).isoformat()
 
     def validate_codigo_postal(self, value):
         if value and not CODIGO_POSTAL_RE.match(value):
@@ -83,6 +90,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
 class InteracaoSerializer(serializers.ModelSerializer):
     tipo_display = serializers.SerializerMethodField()
     registado_por_nome = serializers.SerializerMethodField()
+    evento_id = serializers.IntegerField(read_only=True, allow_null=True)
 
     class Meta:
         model = HistoricoEntrada
@@ -93,9 +101,10 @@ class InteracaoSerializer(serializers.ModelSerializer):
             "data",
             "conteudo",
             "registado_por_nome",
+            "evento_id",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "evento_id"]
 
     def get_tipo_display(self, obj):
         nome = TipoInteracao.nome_por_codigo(obj.tipo)

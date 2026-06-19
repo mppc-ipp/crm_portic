@@ -99,17 +99,23 @@ def listar_organizacoes(access_token: str) -> list[dict]:
     return orgs
 
 
-def publicar_linkedin(org_urn: str, access_token: str, texto: str, media_url: str = "") -> str:
+def publicar_linkedin(
+    org_urn: str,
+    access_token: str,
+    texto: str,
+    media_urls: list[str] | None = None,
+) -> str:
     if get_marketing_config().dry_run:
         return f"dry_run_li_{org_urn}"
 
     author = org_urn if org_urn.startswith("urn:") else f"urn:li:organization:{org_urn}"
+    urls = [url for url in (media_urls or []) if url][:9]
 
     share_content: dict = {
         "shareCommentary": {"text": texto},
         "shareMediaCategory": "NONE",
     }
-    if media_url:
+    if urls:
         share_content = {
             "shareCommentary": {"text": texto},
             "shareMediaCategory": "IMAGE",
@@ -118,6 +124,7 @@ def publicar_linkedin(org_urn: str, access_token: str, texto: str, media_url: st
                     "status": "READY",
                     "originalUrl": media_url,
                 }
+                for media_url in urls
             ],
         }
 

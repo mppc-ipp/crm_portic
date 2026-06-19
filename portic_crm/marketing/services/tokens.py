@@ -8,7 +8,8 @@ from django.conf import settings
 
 
 def _fernet() -> Fernet:
-    digest = hashlib.sha256(settings.SECRET_KEY.encode()).digest()
+    raw = getattr(settings, "ENCRYPTION_KEY", "") or settings.SECRET_KEY
+    digest = hashlib.sha256(raw.encode()).digest()
     key = base64.urlsafe_b64encode(digest)
     return Fernet(key)
 

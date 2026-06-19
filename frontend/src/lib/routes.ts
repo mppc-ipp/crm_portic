@@ -13,6 +13,7 @@ const CRM_PREFIXES = [
   "/startups",
   "/projetos",
   "/marketing",
+  "/teletrabalho",
   "/administrador",
 ];
 
@@ -37,6 +38,7 @@ export function rotaAposLogin(modulos: Record<string, boolean>, adminGeral: bool
   if (modulos.startups) return "/startups";
   if (modulos.projetos) return "/projetos";
   if (modulos.marketing) return "/marketing";
+  if (modulos.teletrabalho) return "/teletrabalho";
   if (modulos.administrador) return "/administrador";
   return "/dashboard";
 }
@@ -51,6 +53,7 @@ const ROTA_MODULO: Array<{ prefix: string; modulo: string }> = [
   { prefix: "/startups", modulo: "startups" },
   { prefix: "/projetos", modulo: "projetos" },
   { prefix: "/marketing", modulo: "marketing" },
+  { prefix: "/teletrabalho", modulo: "teletrabalho" },
   { prefix: "/administrador", modulo: "administrador" },
 ];
 

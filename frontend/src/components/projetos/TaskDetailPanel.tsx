@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Avatar from "./Avatar";
 import { ESTADOS_OBJ } from "./constants";
+import EmpresaPicker from "./EmpresaPicker";
 import type { Atribuivel, CampoPersonalizado, Objetivo } from "./types";
 import { atribuicaoKeyFromObjetivo, formatarData, parseAtribuicaoKey } from "./utils";
 
@@ -35,6 +36,9 @@ export default function TaskDetailPanel({
   const [dataInicio, setDataInicio] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [atribuicao, setAtribuicao] = useState("");
+  const [empresaId, setEmpresaId] = useState<number | null>(null);
+  const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  const [urgente, setUrgente] = useState(false);
   const [novaSubtarefa, setNovaSubtarefa] = useState("");
   const [novoComentario, setNovoComentario] = useState("");
   const [novaDep, setNovaDep] = useState<number | "">("");
@@ -49,6 +53,9 @@ export default function TaskDetailPanel({
     setDataInicio(data.data_inicio ?? "");
     setDataLimite(data.data_limite ?? "");
     setAtribuicao(atribuicaoKeyFromObjetivo(data));
+    setEmpresaId(data.empresa ?? null);
+    setEmpresaNome(data.empresa_nome ?? null);
+    setUrgente(data.urgente ?? false);
   }, [tarefaId]);
 
   useEffect(() => {
@@ -67,6 +74,8 @@ export default function TaskDetailPanel({
         data_limite: dataLimite || null,
         responsavel,
         responsavel_email,
+        empresa: empresaId,
+        urgente,
       });
       onClose();
     } finally {
@@ -215,10 +224,34 @@ export default function TaskDetailPanel({
               <input type="date" value={dataLimite} onChange={(e) => setDataLimite(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5" />
             </div>
             <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+              <span className="text-slate-500">Empresa</span>
+              <EmpresaPicker
+                value={empresaId}
+                label={empresaNome}
+                onChange={(id, nome) => {
+                  setEmpresaId(id);
+                  setEmpresaNome(nome);
+                }}
+                inputClassName="rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-proj w-full"
+              />
+            </div>
+            <div className="grid grid-cols-[100px_1fr] items-center gap-2">
               <span className="text-slate-500">Estado</span>
               <select value={estado} onChange={(e) => setEstado(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5">
                 {ESTADOS_OBJ.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
               </select>
+            </div>
+            <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+              <span className="text-slate-500">Prioridade</span>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={urgente}
+                  onChange={(e) => setUrgente(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm text-slate-700">Urgente</span>
+              </label>
             </div>
           </div>
 

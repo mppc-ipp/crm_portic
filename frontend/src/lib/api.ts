@@ -11,6 +11,7 @@ function resolveApiBase(): string {
 export const API_URL = resolveApiBase();
 
 const AUTH_TOKEN_KEY = "portic_auth_token";
+const AUTH_REFRESH_KEY = "portic_auth_refresh";
 const AUTH_REJECTION_HANDLER_KEY = "__porticAuthUnhandledInstalled";
 
 function normalizeText(value: string) {
@@ -38,20 +39,29 @@ function ensureAuthUnhandledRejectionHandler() {
   w[AUTH_REJECTION_HANDLER_KEY] = true;
 }
 
-export function setAuthToken(token: string) {
+export function setAuthToken(token: string, refresh?: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+  if (refresh) {
+    window.localStorage.setItem(AUTH_REFRESH_KEY, refresh);
+  }
 }
 
 export function clearAuthToken() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(AUTH_REFRESH_KEY);
   window.localStorage.removeItem("portic_user");
 }
 
 export function getAuthToken() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function getRefreshToken() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(AUTH_REFRESH_KEY);
 }
 
 export function withAuthHeaders(headers?: HeadersInit, body?: BodyInit | null): Headers {
@@ -129,16 +139,33 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
 }
 
 export async function login(email: string, password: string) {
-  const data = await apiFetch<{ token: string; user: UserSession }>("/api/auth/login", {
+  const data = await apiFetch<{ token: string; refresh: string; user: UserSession }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     redirectOnUnauthorized: false,
   });
-  setAuthToken(data.token);
+  setAuthToken(data.token, data.refresh);
   if (typeof window !== "undefined") {
     localStorage.setItem("portic_user", JSON.stringify(data.user));
   }
   return data;
+}
+
+export async function logout() {
+  const refresh = getRefreshToken();
+  try {
+    if (refresh) {
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refresh }),
+        redirectOnUnauthorized: false,
+      });
+    }
+  } catch {
+    // Ignorar falhas de rede no logout
+  } finally {
+    clearAuthToken();
+  }
 }
 
 export type UserSession = {
@@ -150,6 +177,7 @@ export type UserSession = {
   admin_geral: boolean;
   permissoes?: {
     gerir_eventos?: boolean;
+    gerir_teletrabalho?: boolean;
   };
   is_superuser?: boolean;
   is_staff?: boolean;

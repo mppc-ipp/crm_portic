@@ -67,7 +67,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (isCrm) {
     return (
       <div className="logged-area flex flex-1 flex-col bg-slate-50">
-        <CrmNav modulos={user?.modulos ?? {}} adminGeral={Boolean(user?.admin_geral)} />
+        <CrmNav
+          modulos={user?.modulos ?? {}}
+          adminGeral={Boolean(user?.admin_geral)}
+          gerirTeletrabalho={Boolean(user?.permissoes?.gerir_teletrabalho)}
+        />
         <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6">{children}</main>
       </div>
     );

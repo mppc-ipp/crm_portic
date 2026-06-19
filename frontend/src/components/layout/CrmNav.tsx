@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 type Props = {
   modulos: Record<string, boolean>;
   adminGeral: boolean;
+  gerirTeletrabalho?: boolean;
 };
 
-export default function CrmNav({ modulos, adminGeral }: Props) {
+export default function CrmNav({ modulos, adminGeral, gerirTeletrabalho }: Props) {
   const pathname = usePathname();
 
   const podeAdmin = adminGeral || Boolean(modulos.administrador);
@@ -20,6 +21,12 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
     { href: "/startups", label: "Startups", show: adminGeral || Boolean(modulos.startups) },
     { href: "/projetos", label: "Projetos", show: adminGeral || Boolean(modulos.projetos) },
     { href: "/marketing", label: "Marketing", show: adminGeral || Boolean(modulos.marketing) },
+    { href: "/teletrabalho", label: "Teletrabalho", show: adminGeral || Boolean(modulos.teletrabalho) },
+    {
+      href: "/teletrabalho/gestao",
+      label: "Gestão Teletrabalho",
+      show: adminGeral || Boolean(gerirTeletrabalho),
+    },
     { href: "/administrador", label: "Administração", show: podeAdmin },
   ];
 
@@ -32,7 +39,9 @@ export default function CrmNav({ modulos, adminGeral }: Props) {
             const active =
               l.href === "/dashboard"
                 ? pathname === "/dashboard"
-                : pathname === l.href || pathname.startsWith(`${l.href}/`);
+                : l.href === "/teletrabalho"
+                  ? pathname === "/teletrabalho"
+                  : pathname === l.href || pathname.startsWith(`${l.href}/`);
             return (
               <Link
                 key={l.href}

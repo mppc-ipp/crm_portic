@@ -125,6 +125,8 @@ class AdminUtilizadoresListAPIView(AdminPermissionMixin, APIView):
                     }
                     for u in (_serialize_user(x) for x in users)
                 ],
+                actor=request.user,
+                modulo="administrador",
             )
         return Response([_serialize_user(u) for u in users])
 
@@ -356,6 +358,9 @@ def _serialize_sistema(cfg: ConfiguracaoSistema) -> dict:
     linkedin_redirect_default = (
         dj_settings.LINKEDIN_REDIRECT_URI or f"{api_base}/api/marketing/oauth/linkedin/callback"
     )
+    tiktok_redirect_default = (
+        dj_settings.TIKTOK_REDIRECT_URI or f"{api_base}/api/marketing/oauth/tiktok/callback"
+    )
     media_base_default = dj_settings.MARKETING_MEDIA_PUBLIC_BASE_URL or api_base
     dry_run_efectivo = (
         cfg.marketing_dry_run
@@ -403,6 +408,9 @@ def _serialize_sistema(cfg: ConfiguracaoSistema) -> dict:
             "linkedin_client_id": cfg.marketing_linkedin_client_id,
             "linkedin_client_secret_configured": bool(cfg.marketing_linkedin_client_secret),
             "linkedin_redirect_uri": cfg.marketing_linkedin_redirect_uri or linkedin_redirect_default,
+            "tiktok_client_key": cfg.marketing_tiktok_client_key,
+            "tiktok_client_secret_configured": bool(cfg.marketing_tiktok_client_secret),
+            "tiktok_redirect_uri": cfg.marketing_tiktok_redirect_uri or tiktok_redirect_default,
             "media_public_base_url": cfg.marketing_media_public_base_url or media_base_default,
             "dry_run": dry_run_efectivo,
             "configurado_na_bd": bool(
@@ -410,6 +418,8 @@ def _serialize_sistema(cfg: ConfiguracaoSistema) -> dict:
                 or cfg.marketing_meta_app_secret
                 or cfg.marketing_linkedin_client_id
                 or cfg.marketing_linkedin_client_secret
+                or cfg.marketing_tiktok_client_key
+                or cfg.marketing_tiktok_client_secret
             ),
         },
     }
@@ -427,6 +437,10 @@ def _aplicar_marketing_config(cfg: ConfiguracaoSistema, data: dict) -> None:
         cfg.marketing_linkedin_client_id = (marketing.get("linkedin_client_id") or "").strip()
     if "linkedin_redirect_uri" in marketing:
         cfg.marketing_linkedin_redirect_uri = (marketing.get("linkedin_redirect_uri") or "").strip()
+    if "tiktok_client_key" in marketing:
+        cfg.marketing_tiktok_client_key = (marketing.get("tiktok_client_key") or "").strip()
+    if "tiktok_redirect_uri" in marketing:
+        cfg.marketing_tiktok_redirect_uri = (marketing.get("tiktok_redirect_uri") or "").strip()
     if "media_public_base_url" in marketing:
         cfg.marketing_media_public_base_url = (marketing.get("media_public_base_url") or "").strip()
     if "dry_run" in marketing:
@@ -439,6 +453,10 @@ def _aplicar_marketing_config(cfg: ConfiguracaoSistema, data: dict) -> None:
     linkedin_secret = marketing.get("linkedin_client_secret")
     if linkedin_secret and linkedin_secret not in ("********", "••••••••"):
         cfg.marketing_linkedin_client_secret = encriptar_token(str(linkedin_secret).strip())
+
+    tiktok_secret = marketing.get("tiktok_client_secret")
+    if tiktok_secret and tiktok_secret not in ("********", "••••••••"):
+        cfg.marketing_tiktok_client_secret = encriptar_token(str(tiktok_secret).strip())
 
 
 class AdminSistemaAPIView(AdminPermissionMixin, APIView):
@@ -577,6 +595,8 @@ class AdminAuditoriaAPIView(AdminPermissionMixin, APIView):
                     ("criado_em", "Criado em"),
                 ],
                 [self._serialize_item(h) for h in qs[:5000]],
+                actor=request.user,
+                modulo="administrador",
             )
         page = max(1, int(request.query_params.get("page", 1)))
         page_size = min(100, max(10, int(request.query_params.get("page_size", 25))))

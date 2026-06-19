@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from portic_crm.marketing.models import (
     ContaSocial,
+    CorEstadoPublicacao,
     Publicacao,
     PublicacaoDestino,
     PublicacaoLog,
@@ -37,3 +38,10 @@ class ContaSocialAdmin(admin.ModelAdmin):
 class PublicacaoLogAdmin(admin.ModelAdmin):
     list_display = ("publicacao", "nivel", "mensagem", "created_at")
     list_filter = ("nivel",)
+
+
+@admin.register(CorEstadoPublicacao)
+class CorEstadoPublicacaoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "codigo", "cor", "ordem")
+    ordering = ("ordem", "nome")
+    readonly_fields = ("codigo",)

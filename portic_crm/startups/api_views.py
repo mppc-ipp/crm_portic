@@ -147,6 +147,8 @@ class CandidaturaViewSet(viewsets.ModelViewSet):
                     ("formulario", "Formulário"),
                 ],
                 rows,
+                actor=request.user,
+                modulo="startups",
             )
         return super().list(request, *args, **kwargs)
 
@@ -641,5 +643,7 @@ class EdicaoRelatorioAPIView(APIView):
                     ("contratos_ativos", "Contratos ativos"),
                 ],
                 rows,
+                actor=request.user,
+                modulo="startups",
             )
         return Response(rows)

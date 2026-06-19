@@ -202,6 +202,8 @@ export default function ProjetosPage() {
         data_limite: data.data_limite,
         responsavel: data.responsavel,
         responsavel_email: data.responsavel_email ?? "",
+        empresa: data.empresa,
+        urgente: data.urgente,
         estado: "PENDENTE",
         ordem,
       }),

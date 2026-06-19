@@ -1,30 +1,46 @@
 import type { Plataforma } from "./types";
 import PlatformBadge from "./PlatformBadge";
+import FacebookPreview from "./previews/FacebookPreview";
+import InstagramPreview from "./previews/InstagramPreview";
+import LinkedInPreview from "./previews/LinkedInPreview";
+import TikTokPreview from "./previews/TikTokPreview";
 
 type Props = {
   plataforma: Plataforma;
+  nomeConta?: string;
   texto: string;
   linkUrl?: string;
   imagens: string[];
+  videos?: string[];
 };
 
-export default function PostPreview({ plataforma, texto, linkUrl, imagens }: Props) {
+const PREVIEWS = {
+  FACEBOOK: FacebookPreview,
+  INSTAGRAM: InstagramPreview,
+  LINKEDIN: LinkedInPreview,
+  TIKTOK: TikTokPreview,
+} as const;
+
+export default function PostPreview({
+  plataforma,
+  nomeConta,
+  texto,
+  linkUrl,
+  imagens,
+  videos = [],
+}: Props) {
+  const Preview = PREVIEWS[plataforma];
+
   return (
-    <div className="rounded-xl border bg-white p-4">
-      <div className="mb-2">
-        <PlatformBadge plataforma={plataforma} />
-      </div>
-      {imagens[0] && (
-        <img
-          src={imagens[0]}
-          alt="Pré-visualização"
-          className="mb-2 max-h-40 w-full rounded-lg object-cover"
-        />
-      )}
-      <p className="whitespace-pre-wrap text-sm text-slate-700">{texto || "Sem texto"}</p>
-      {linkUrl && plataforma === "FACEBOOK" && (
-        <p className="mt-2 truncate text-xs text-blue-600">{linkUrl}</p>
-      )}
+    <div className="space-y-2">
+      <PlatformBadge plataforma={plataforma} />
+      <Preview
+        nomeConta={nomeConta}
+        texto={texto}
+        linkUrl={linkUrl}
+        imagens={imagens}
+        videos={videos}
+      />
     </div>
   );
 }

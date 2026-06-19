@@ -11,7 +11,7 @@ from portic_crm.administrador.api_views import (
     AdminUtilizadorDetailAPIView,
     AdminUtilizadoresListAPIView,
 )
-from portic_crm.api.auth_views import LoginAPIView, MeAPIView
+from portic_crm.api.auth_views import LoginAPIView, LogoutAPIView, MeAPIView
 from portic_crm.api.users_views import UserLookupAPIView, UsersListAPIView
 from portic_crm.core.api_views import (
     NotificacaoDetailAPIView,
@@ -33,8 +33,10 @@ from portic_crm.empresas.api_views import (
 )
 from portic_crm.espacos.api_urls import urlpatterns as espacos_urls
 from portic_crm.marketing.api_urls import urlpatterns as marketing_urls
+from portic_crm.marketing.api_views import CorEstadoPublicacaoViewSet
 from portic_crm.projetos.api_views import ObjetivoViewSet, ProjetoViewSet, SecaoViewSet
 from portic_crm.projetos.projetos_api_urls import urlpatterns as projetos_extra_urls
+from portic_crm.teletrabalho.api_urls import urlpatterns as teletrabalho_urls
 from portic_crm.startups.api_views import (
     CandidaturaEstatisticasAPIView,
     CandidaturaHistoricoAPIView,
@@ -72,6 +74,11 @@ router.register(r"projetos/objetivos", ObjetivoViewSet, basename="objetivo")
 router.register(r"projetos", ProjetoViewSet, basename="projeto")
 router.register(r"eventos/tipos", TipoEventoViewSet, basename="tipo-evento")
 router.register(r"eventos", EventoViewSet, basename="evento")
+router.register(
+    r"marketing/estados-publicacao",
+    CorEstadoPublicacaoViewSet,
+    basename="cor-estado-publicacao",
+)
 
 urlpatterns = [
     path("dashboard", DashboardAPIView.as_view()),
@@ -101,6 +108,7 @@ urlpatterns = [
         EmpresaInteracaoDetailAPIView.as_view(),
     ),
     path("auth/login", LoginAPIView.as_view()),
+    path("auth/logout", LogoutAPIView.as_view()),
     path("auth/me", MeAPIView.as_view()),
     path("users", UsersListAPIView.as_view()),
     path("users/lookup", UserLookupAPIView.as_view()),
@@ -113,4 +121,4 @@ urlpatterns = [
     path("admin/sistema", AdminSistemaAPIView.as_view()),
     path("auth/refresh", TokenRefreshView.as_view()),
     path("", include(router.urls)),
-] + projetos_extra_urls + espacos_urls + marketing_urls
+] + projetos_extra_urls + espacos_urls + marketing_urls + teletrabalho_urls

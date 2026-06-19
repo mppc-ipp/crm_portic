@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { apiFetch, clearAuthToken } from "@/lib/api";
+import { apiFetch, logout } from "@/lib/api";
 import { Button } from "@/components/ui/ui";
 
 export default function SiteHeader() {
@@ -75,9 +75,10 @@ export default function SiteHeader() {
               disabled={loggingOut}
               onClick={() => {
                 setLoggingOut(true);
-                clearAuthToken();
-                router.push("/login");
-                setLoggingOut(false);
+                void logout().finally(() => {
+                  router.push("/login");
+                  setLoggingOut(false);
+                });
               }}
             >
               Sair

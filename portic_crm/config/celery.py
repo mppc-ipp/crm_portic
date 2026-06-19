@@ -22,4 +22,8 @@ app.conf.beat_schedule = {
         "task": "portic_crm.marketing.tasks.renovar_tokens_linkedin",
         "schedule": crontab(hour=4, minute=0),
     },
+    "marketing-renovar-tokens-tiktok": {
+        "task": "portic_crm.marketing.tasks.renovar_tokens_tiktok",
+        "schedule": crontab(hour=5, minute=0),
+    },
 }

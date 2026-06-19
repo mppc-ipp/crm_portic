@@ -38,6 +38,9 @@ class ConfiguracaoSistema(models.Model):
     marketing_linkedin_client_id = models.CharField(max_length=255, blank=True)
     marketing_linkedin_client_secret = models.TextField(blank=True)
     marketing_linkedin_redirect_uri = models.URLField(blank=True, max_length=500)
+    marketing_tiktok_client_key = models.CharField(max_length=255, blank=True)
+    marketing_tiktok_client_secret = models.TextField(blank=True)
+    marketing_tiktok_redirect_uri = models.URLField(blank=True, max_length=500)
     marketing_media_public_base_url = models.URLField(blank=True, max_length=500)
     marketing_dry_run = models.BooleanField(
         null=True,

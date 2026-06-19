@@ -1,9 +1,9 @@
 "use client";
 
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { CALENDARIO_HORAS } from "@/lib/calendarioHorario";
-import { classeEventoCalendario, estiloTipoEvento, eventoCobreHora } from "@/lib/eventos";
+import { classeEventoCalendario, estiloTipoEvento, eventoCobreHora, eventoIntersectaDia } from "@/lib/eventos";
 import { EventoCalendario } from "@/lib/types";
 
 type Props = {
@@ -22,7 +22,7 @@ export default function CalendarDayView({
   disableSelection = false,
 }: Props) {
   const hours = CALENDARIO_HORAS;
-  const dayEvents = eventos.filter((e) => isSameDay(new Date(e.dataInicio), baseDate));
+  const dayEvents = eventos.filter((e) => eventoIntersectaDia(e.dataInicio, e.dataFim, baseDate));
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartHour, setDragStartHour] = useState<number | null>(null);
   const [dragEndHour, setDragEndHour] = useState<number | null>(null);

@@ -15,7 +15,11 @@ from portic_crm.projetos.models import (
     ValorCampoPersonalizado,
     VistaGuardada,
 )
-from portic_crm.projetos.services import nome_responsavel_objetivo, pode_atribuir_tarefa
+from portic_crm.projetos.services import (
+    nome_responsavel_objetivo,
+    pode_atribuir_tarefa,
+    pode_ver_empresa,
+)
 
 
 class SubtarefaSerializer(serializers.ModelSerializer):
@@ -71,6 +75,7 @@ class ValorCampoSerializer(serializers.ModelSerializer):
 
 class ObjetivoSerializer(serializers.ModelSerializer):
     responsavel_nome = serializers.SerializerMethodField()
+    empresa_nome = serializers.SerializerMethodField()
     subtarefas = SubtarefaSerializer(many=True, read_only=True)
     comentarios = ComentarioSerializer(many=True, read_only=True)
     dependencias_entrada = DependenciaSerializer(many=True, read_only=True)
@@ -81,6 +86,9 @@ class ObjetivoSerializer(serializers.ModelSerializer):
 
     def get_responsavel_nome(self, obj):
         return nome_responsavel_objetivo(obj)
+
+    def get_empresa_nome(self, obj):
+        return obj.empresa.nome if obj.empresa_id else None
 
     def get_subtarefas_total(self, obj):
         return obj.subtarefas.count()
@@ -100,7 +108,10 @@ class ObjetivoSerializer(serializers.ModelSerializer):
             "responsavel",
             "responsavel_email",
             "responsavel_nome",
+            "empresa",
+            "empresa_nome",
             "estado",
+            "urgente",
             "ordem",
             "subtarefas",
             "subtarefas_total",
@@ -116,12 +127,16 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
     """Versão leve para listagens em board/lista."""
 
     responsavel_nome = serializers.SerializerMethodField()
+    empresa_nome = serializers.SerializerMethodField()
     subtarefas_total = serializers.SerializerMethodField()
     subtarefas_concluidas = serializers.SerializerMethodField()
     comentarios_total = serializers.SerializerMethodField()
 
     def get_responsavel_nome(self, obj):
         return nome_responsavel_objetivo(obj)
+
+    def get_empresa_nome(self, obj):
+        return obj.empresa.nome if obj.empresa_id else None
 
     def get_subtarefas_total(self, obj):
         return getattr(obj, "_subtarefas_total", obj.subtarefas.count())
@@ -144,7 +159,10 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
             "responsavel",
             "responsavel_email",
             "responsavel_nome",
+            "empresa",
+            "empresa_nome",
             "estado",
+            "urgente",
             "ordem",
             "subtarefas_total",
             "subtarefas_concluidas",
@@ -283,11 +301,14 @@ class ObjetivoWriteSerializer(serializers.ModelSerializer):
             "responsavel",
             "responsavel_email",
             "estado",
+            "urgente",
             "ordem",
             "secao",
+            "empresa",
         ]
         extra_kwargs = {
             "responsavel_email": {"allow_null": True},
+            "empresa": {"allow_null": True},
         }
 
     def _projeto_alvo(self):
@@ -335,6 +356,13 @@ class ObjetivoWriteSerializer(serializers.ModelSerializer):
             raise ValidationError(
                 "A pessoa deve ser membro do projeto ou responsável pelo projeto."
             )
+
+        if "empresa" in attrs and attrs["empresa"] is not None:
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            if not user or not pode_ver_empresa(user):
+                raise ValidationError({"empresa": "Sem permissão para vincular empresas."})
+
         return attrs
 
 

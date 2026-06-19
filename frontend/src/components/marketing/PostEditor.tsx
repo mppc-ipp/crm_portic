@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PostPreview from "./PostPreview";
+import MediaGallery, { type ValidacaoMidia } from "./MediaGallery";
 import type { ContaSocial, Plataforma, Publicacao } from "./types";
 import {
   actualizarPublicacao,
@@ -9,12 +10,31 @@ import {
   criarPublicacao,
   publicarAgora,
   uploadMedia,
+  eliminarMedia,
 } from "@/lib/marketing-api";
+import {
+  lerInfoMidia,
+  lerInfoMidiaFromUrl,
+  REQUISITOS_RESUMO,
+  NOMES_PLATAFORMA,
+  PLATAFORMAS_CARROSSEL,
+  validarCarrossel,
+  validarCarrosselInstagram,
+  validarMixMidias,
+  validarMidiaParaPlataformas,
+  estadoPlataforma,
+  issuesDaPlataforma,
+  issuesRequisitosMidia,
+  errosBloqueantes,
+  type MediaInfo,
+  type MediaValidationIssue,
+} from "@/lib/marketing-media-validation";
 
 const LIMITES: Record<Plataforma, number> = {
   FACEBOOK: 63206,
   INSTAGRAM: 2200,
   LINKEDIN: 3000,
+  TIKTOK: 2200,
 };
 
 const inputClass = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
@@ -41,8 +61,13 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
     publicacao?.agendado_para?.slice(0, 16) ?? ""
   );
   const [aGuardar, setAGuardar] = useState(false);
+  const [aCarregarMidia, setACarregarMidia] = useState(false);
+  const [aEliminarMidiaId, setAEliminarMidiaId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
+  const [validacoesMidia, setValidacoesMidia] = useState<Record<number, ValidacaoMidia>>({});
+  const [issuesGlobais, setIssuesGlobais] = useState<MediaValidationIssue[]>([]);
   const ficheiroRef = useRef<HTMLInputElement>(null);
+  const midiasCarregadasRef = useRef<Set<number>>(new Set());
 
   const plataformasSeleccionadas = useMemo(
     () => [...new Set(destinos.map((d) => d.plataforma))],
@@ -53,6 +78,86 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
     if (plataformasSeleccionadas.length === 0) return 63206;
     return Math.min(...plataformasSeleccionadas.map((p) => LIMITES[p]));
   }, [plataformasSeleccionadas]);
+
+  const plataformasValidacao = plataformasSeleccionadas;
+
+  const recalcularValidacoesGlobais = useCallback(
+    (infos: MediaInfo[]) => {
+      if (plataformasValidacao.length === 0) return [];
+      const totalImagens = infos.filter((i) => i.tipo === "IMAGEM").length;
+      return [
+        ...validarCarrossel(totalImagens, plataformasValidacao),
+        ...validarCarrosselInstagram(infos, plataformasValidacao),
+        ...validarMixMidias(infos, plataformasValidacao),
+      ];
+    },
+    [plataformasValidacao]
+  );
+
+  const actualizarValidacaoMidia = useCallback(
+    (id: number, info: MediaInfo) => {
+      const issues = validarMidiaParaPlataformas(info, plataformasValidacao);
+      setValidacoesMidia((prev) => ({ ...prev, [id]: { info, issues } }));
+      return issues;
+    },
+    [plataformasValidacao]
+  );
+
+  useEffect(() => {
+    let cancelado = false;
+    const pendentes = midias.filter((m) => !midiasCarregadasRef.current.has(m.id));
+    if (pendentes.length === 0) return;
+
+    (async () => {
+      const novas: Record<number, ValidacaoMidia> = {};
+      for (const m of pendentes) {
+        try {
+          const info = await lerInfoMidiaFromUrl(m.url, m.tipo);
+          if (cancelado) return;
+          novas[m.id] = {
+            info,
+            issues: validarMidiaParaPlataformas(info, plataformasValidacao),
+          };
+        } catch {
+          if (cancelado) return;
+          novas[m.id] = { issues: [] };
+        }
+        midiasCarregadasRef.current.add(m.id);
+      }
+      if (!cancelado && Object.keys(novas).length > 0) {
+        setValidacoesMidia((prev) => ({ ...prev, ...novas }));
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [midias, plataformasValidacao]);
+
+  useEffect(() => {
+    setValidacoesMidia((prev) => {
+      const next: Record<number, ValidacaoMidia> = {};
+      for (const m of midias) {
+        const actual = prev[m.id];
+        if (actual?.info) {
+          next[m.id] = {
+            info: actual.info,
+            issues: validarMidiaParaPlataformas(actual.info, plataformasValidacao),
+          };
+        } else if (actual) {
+          next[m.id] = actual;
+        }
+      }
+      return next;
+    });
+  }, [plataformasValidacao, midias]);
+
+  useEffect(() => {
+    const infos = Object.values(validacoesMidia)
+      .map((v) => v.info)
+      .filter((i): i is MediaInfo => Boolean(i));
+    setIssuesGlobais(recalcularValidacoesGlobais(infos));
+  }, [validacoesMidia, recalcularValidacoesGlobais]);
 
   function toggleConta(conta: ContaSocial) {
     setDestinos((prev) => {
@@ -65,6 +170,22 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
   function contaSeleccionada(contaId: number) {
     return destinos.some((d) => d.conta === contaId);
   }
+
+  const validacoesLista = useMemo(
+    () => Object.values(validacoesMidia),
+    [validacoesMidia]
+  );
+
+  const errosPublicacao = useMemo(
+    () =>
+      errosBloqueantes(
+        plataformasSeleccionadas,
+        validacoesLista,
+        issuesGlobais,
+        midias
+      ),
+    [plataformasSeleccionadas, validacoesLista, issuesGlobais, midias]
+  );
 
   async function guardarPayload(): Promise<Publicacao> {
     const payload = {
@@ -83,16 +204,96 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
 
   async function handleUpload(files: FileList | null) {
     if (!files?.length) return;
+    if (destinos.length === 0) {
+      if (ficheiroRef.current) ficheiroRef.current.value = "";
+      return;
+    }
+
     setErro("");
-    let pid = publicacaoId;
-    for (let i = 0; i < files.length; i++) {
-      const result = await uploadMedia(files[i], pid, midias.length + i);
-      pid = result.publicacao_id;
-      setPublicacaoId(pid);
-      setMidias((m) => [
-        ...m,
-        { id: result.midia.id, tipo: "IMAGEM", ordem: m.length, url: result.midia.url },
-      ]);
+    setACarregarMidia(true);
+
+    const listaFicheiros = Array.from(files);
+
+    try {
+      const novasImagens = listaFicheiros.filter((f) => !f.type.startsWith("video/")).length;
+      const infosActuais = Object.values(validacoesMidia)
+        .map((v) => v.info)
+        .filter((i): i is MediaInfo => Boolean(i));
+      const totalImagens =
+        infosActuais.filter((i) => i.tipo === "IMAGEM").length + novasImagens;
+
+      if (plataformasValidacao.length > 0) {
+        const carrosselIssues = validarCarrossel(totalImagens, plataformasValidacao);
+        const errosCarrossel = carrosselIssues.filter((i) => i.nivel === "erro");
+        if (errosCarrossel.length > 0) {
+          setErro(
+            `${NOMES_PLATAFORMA[errosCarrossel[0].plataforma]}: ${errosCarrossel[0].mensagem}`
+          );
+          return;
+        }
+      }
+
+      let pid = publicacaoId;
+
+      for (let i = 0; i < listaFicheiros.length; i++) {
+        const ficheiro = listaFicheiros[i];
+        let info: MediaInfo;
+        try {
+          info = await lerInfoMidia(ficheiro);
+        } catch {
+          setErro(`Não foi possível ler «${ficheiro.name}». Verifique o ficheiro.`);
+          return;
+        }
+
+        if (plataformasValidacao.length > 0) {
+          const issues = validarMidiaParaPlataformas(info, plataformasValidacao);
+          const erros = issues.filter((i) => i.nivel === "erro");
+          if (erros.length > 0) {
+            setErro(
+              `«${ficheiro.name}» — ${NOMES_PLATAFORMA[erros[0].plataforma]}: ${erros[0].mensagem}`
+            );
+            return;
+          }
+        }
+
+        const tipo = info.tipo;
+        const result = await uploadMedia(ficheiro, pid, midias.length + i);
+        pid = result.publicacao_id;
+        setPublicacaoId(pid);
+        const novaMidia = {
+          id: result.midia.id,
+          tipo,
+          ordem: midias.length + i,
+          url: result.midia.url,
+        } as const;
+        setMidias((m) => [...m, novaMidia]);
+        midiasCarregadasRef.current.add(result.midia.id);
+        actualizarValidacaoMidia(result.midia.id, info);
+      }
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao enviar ficheiro");
+    } finally {
+      setACarregarMidia(false);
+      if (ficheiroRef.current) ficheiroRef.current.value = "";
+    }
+  }
+
+  async function eliminarMidia(id: number) {
+    setErro("");
+    setAEliminarMidiaId(id);
+    try {
+      await eliminarMedia(id);
+      setMidias((lista) => lista.filter((m) => m.id !== id));
+      midiasCarregadasRef.current.delete(id);
+      setValidacoesMidia((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao remover ficheiro");
+    } finally {
+      setAEliminarMidiaId(null);
     }
   }
 
@@ -111,8 +312,25 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
       setErro("Instagram exige pelo menos uma imagem");
       return;
     }
+    if (
+      plataformasSeleccionadas.includes("TIKTOK") &&
+      !midias.some((m) => m.tipo === "VIDEO")
+    ) {
+      setErro("TikTok exige pelo menos um vídeo");
+      return;
+    }
     if (texto.length > limiteTexto) {
       setErro(`Texto excede o limite de ${limiteTexto} caracteres`);
+      return;
+    }
+    if (
+      (accao === "publicar" || accao === "agendar") &&
+      errosPublicacao.length > 0
+    ) {
+      const primeiro = errosPublicacao[0];
+      setErro(
+        `Não é possível publicar: ${NOMES_PLATAFORMA[primeiro.plataforma]} — ${primeiro.mensagem}`
+      );
       return;
     }
 
@@ -181,6 +399,19 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
 
         <div>
           <label className={labelClass}>Redes e contas</label>
+          {plataformasSeleccionadas.length > 0 && (
+            <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <p className="font-medium text-slate-700">Requisitos das redes seleccionadas</p>
+              <ul className="mt-1 space-y-1">
+                {plataformasSeleccionadas.map((p) => (
+                  <li key={p}>
+                    <span className="font-medium">{NOMES_PLATAFORMA[p]}:</span>{" "}
+                    {REQUISITOS_RESUMO[p].imagem}; {REQUISITOS_RESUMO[p].video}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="mt-2 space-y-2">
             {contas.length === 0 && (
               <p className="text-sm text-amber-700">
@@ -190,46 +421,86 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
                 </a>
               </p>
             )}
-            {contas.map((conta) => (
+            {contas.map((conta) => {
+              const seleccionada = contaSeleccionada(conta.id);
+              const issuesConta = seleccionada
+                ? [
+                    ...issuesRequisitosMidia(conta.plataforma, midias),
+                    ...issuesDaPlataforma(
+                      conta.plataforma,
+                      validacoesLista,
+                      issuesGlobais
+                    ),
+                  ]
+                : [];
+              const estado = seleccionada ? estadoPlataforma(conta.plataforma, issuesConta) : "ok";
+              const rowClass = !seleccionada
+                ? "hover:bg-slate-50"
+                : estado === "erro"
+                  ? "border-red-400 bg-red-50"
+                  : "hover:bg-slate-50";
+
+              return (
               <label
                 key={conta.id}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 hover:bg-slate-50"
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 ${rowClass}`}
               >
                 <input
                   type="checkbox"
-                  checked={contaSeleccionada(conta.id)}
+                  checked={seleccionada}
                   onChange={() => toggleConta(conta)}
                   disabled={!editavel}
                 />
-                <span className="text-sm">
+                <span className={`text-sm ${seleccionada && estado === "erro" ? "font-medium text-red-800" : ""}`}>
                   {conta.plataforma_nome} — {conta.nome_exibicao}
+                  {seleccionada && estado === "erro" && (
+                    <span className="ml-1 text-xs text-red-600">
+                      — {issuesConta.find((i) => i.nivel === "erro")?.mensagem}
+                    </span>
+                  )}
                 </span>
               </label>
-            ))}
+            );
+            })}
           </div>
         </div>
 
         <div>
           <label className={labelClass}>Imagens / vídeo</label>
+          {destinos.length === 0 ? (
+            <p className="mt-0.5 text-xs text-slate-500">
+              Seleccione pelo menos uma conta acima para adicionar imagens ou vídeos.
+            </p>
+          ) : (
+            PLATAFORMAS_CARROSSEL.some((p) => plataformasSeleccionadas.includes(p)) && (
+              <p className="mt-0.5 text-xs text-slate-500">
+                Para carrossel, seleccione várias fotos de uma vez (máx. 10 no Instagram/Facebook,
+                9 no LinkedIn).
+                {plataformasSeleccionadas.includes("INSTAGRAM") &&
+                  " No Instagram, todas devem ter a mesma proporção."}
+              </p>
+            )
+          )}
           <input
             ref={ficheiroRef}
             type="file"
             accept="image/*,video/*"
             multiple
-            className="mt-1 text-sm"
-            disabled={!editavel}
+            className="mt-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!editavel || aCarregarMidia || destinos.length === 0}
             onChange={(e) => handleUpload(e.target.files)}
           />
-          <div className="mt-2 flex flex-wrap gap-2">
-            {midias.map((m) => (
-              <img
-                key={m.id}
-                src={m.url}
-                alt=""
-                className="h-20 w-20 rounded-lg border object-cover"
-              />
-            ))}
-          </div>
+          {aCarregarMidia && (
+            <p className="mt-1 text-xs text-slate-500">A validar e enviar ficheiro…</p>
+          )}
+          <MediaGallery
+            midias={midias}
+            validacoes={validacoesMidia}
+            plataformasSeleccionadas={plataformasSeleccionadas}
+            editavel={editavel}
+            aEliminarId={aEliminarMidiaId}
+            onEliminar={eliminarMidia}
+          />
         </div>
 
         <div>
@@ -254,7 +525,7 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
             </button>
             <button
               type="button"
-              disabled={aGuardar}
+              disabled={aGuardar || errosPublicacao.length > 0}
               onClick={(e) => submit(e as unknown as FormEvent, "publicar")}
               className="rounded-lg bg-portic px-4 py-2 text-sm text-white disabled:opacity-50"
             >
@@ -262,7 +533,7 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
             </button>
             <button
               type="button"
-              disabled={aGuardar}
+              disabled={aGuardar || errosPublicacao.length > 0}
               onClick={(e) => submit(e as unknown as FormEvent, "agendar")}
               className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white disabled:opacity-50"
             >
@@ -277,15 +548,21 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
         {plataformasSeleccionadas.length === 0 ? (
           <p className="text-sm text-slate-500">Seleccione redes para pré-visualizar.</p>
         ) : (
-          plataformasSeleccionadas.map((p) => (
-            <PostPreview
-              key={p}
-              plataforma={p}
-              texto={texto}
-              linkUrl={linkUrl}
-              imagens={midias.map((m) => m.url)}
-            />
-          ))
+          plataformasSeleccionadas.map((p) => {
+            const contaId = destinos.find((d) => d.plataforma === p)?.conta;
+            const conta = contas.find((c) => c.id === contaId);
+            return (
+              <PostPreview
+                key={p}
+                plataforma={p}
+                nomeConta={conta?.nome_exibicao}
+                texto={texto}
+                linkUrl={linkUrl}
+                imagens={midias.filter((m) => m.tipo === "IMAGEM").map((m) => m.url)}
+                videos={midias.filter((m) => m.tipo === "VIDEO").map((m) => m.url)}
+              />
+            );
+          })
         )}
 
         {publicacao?.logs && publicacao.logs.length > 0 && (

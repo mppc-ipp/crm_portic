@@ -15,6 +15,7 @@ from portic_crm.empresas.serializers import (
     InteracaoSerializer,
     TipoInteracaoSerializer,
 )
+from portic_crm.empresas.services.ultima_interacao import queryset_com_ultima_interacao
 
 
 class EmpresaViewSet(viewsets.ModelViewSet):
@@ -50,7 +51,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         estado = self.request.query_params.get("estado", "").strip()
         if estado:
             qs = qs.filter(estado=estado)
-        return qs
+        return queryset_com_ultima_interacao(qs)
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("format") == "csv":
@@ -84,6 +85,8 @@ class EmpresaViewSet(viewsets.ModelViewSet):
                     }
                     for e in qs
                 ],
+                actor=request.user,
+                modulo="empresas",
             )
         return super().list(request, *args, **kwargs)
 
@@ -174,6 +177,8 @@ class EmpresaInteracaoAPIView(APIView):
                     ("registado_por_nome", "Registado por"),
                 ],
                 data,
+                actor=request.user,
+                modulo="empresas",
             )
         return Response(InteracaoSerializer(interacoes, many=True).data)
 
@@ -213,6 +218,11 @@ class EmpresaInteracaoDetailAPIView(APIView):
         if not self._pode_registar(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
         interacao = self._get_interacao(empresa_pk, pk)
+        if interacao.evento_id:
+            return Response(
+                {"error": "Interações geradas por eventos só podem ser editadas na página de eventos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = InteracaoSerializer(interacao, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -229,6 +239,11 @@ class EmpresaInteracaoDetailAPIView(APIView):
         if not self._pode_registar(request.user):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
         interacao = self._get_interacao(empresa_pk, pk)
+        if interacao.evento_id:
+            return Response(
+                {"error": "Interações geradas por eventos só podem ser removidas eliminando o evento."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         empresa = get_object_or_404(Empresa, pk=empresa_pk)
         resumo = interacao.conteudo[:120]
         interacao.delete()

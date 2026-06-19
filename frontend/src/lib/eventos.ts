@@ -42,6 +42,8 @@ export type EventoDetalhe = {
   data_fim: string;
   descricao: string;
   particular: boolean;
+  empresa: number | null;
+  empresa_nome: string | null;
   anexos: AnexoEvento[];
   passado: boolean;
   editable: boolean;
@@ -85,6 +87,21 @@ export function deDatetimeLocal(value: string) {
   const [y, m, d] = datePart.split("-").map(Number);
   const [hh, mm] = (timePart || "00:00").split(":").map(Number);
   return new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
+}
+
+/** Verifica se o evento intersecta o dia indicado (qualquer hora desse dia). */
+export function eventoIntersectaDia(
+  dataInicio: string,
+  dataFim: string,
+  day: Date
+): boolean {
+  const inicio = new Date(dataInicio);
+  const fim = new Date(dataFim);
+  const diaInicio = new Date(day);
+  diaInicio.setHours(0, 0, 0, 0);
+  const diaFim = new Date(day);
+  diaFim.setHours(23, 59, 59, 999);
+  return inicio <= diaFim && fim >= diaInicio;
 }
 
 /** Verifica se o evento intersecta o slot horário [hour, hour+1) no dia indicado. */

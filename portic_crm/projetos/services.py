@@ -1,10 +1,14 @@
 import re
+from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 
+from portic_crm.core.models import HistoricoEntrada
 from portic_crm.core.permissions import is_admin_geral
+from portic_crm.empresas.models import Empresa, TipoInteracao
 from portic_crm.projetos.models import AtividadeProjeto, MembroProjeto, Objetivo, Projeto
 
 User = get_user_model()
@@ -31,6 +35,22 @@ def usuario_pode_ver_projeto(user, projeto: Projeto) -> bool:
     return projeto.membros.filter(
         Q(utilizador_id=user.pk) | Q(email__iexact=email)
     ).exists()
+
+
+def pode_ver_projetos(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("projetos.view_projeto")
+
+
+def pode_criar_projeto(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("projetos.add_projeto")
+
+
+def pode_editar_projeto(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("projetos.change_projeto")
+
+
+def pode_eliminar_projeto(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("projetos.delete_projeto")
 
 
 def queryset_projetos_visiveis(user):
@@ -204,3 +224,38 @@ def registar_atividade(projeto, utilizador, acao, descricao, objetivo=None, meta
 
 def projeto_de_objetivo(objetivo: Objetivo) -> Projeto:
     return objetivo.secao.projeto
+
+
+def pode_registar_interacao_empresa(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("empresas.change_empresa")
+
+
+def pode_ver_empresa(user) -> bool:
+    return is_admin_geral(user) or user.has_perm("empresas.view_empresa")
+
+
+def _conteudo_interacao_tarefa_concluida(objetivo: Objetivo) -> str:
+    projeto = objetivo.projeto
+    linhas = [f"Tarefa «{objetivo.titulo}» concluída no projeto «{projeto.nome}»."]
+    if objetivo.descricao.strip():
+        linhas.append(objetivo.descricao.strip())
+    return "\n".join(linhas)
+
+
+def registar_interacao_empresa_tarefa_concluida(objetivo: Objetivo, user) -> bool:
+    if not objetivo.empresa_id:
+        return False
+    if not pode_registar_interacao_empresa(user):
+        return False
+    if not TipoInteracao.objects.filter(codigo="TAREFA_PROJETO", ativo=True).exists():
+        return False
+    ct = ContentType.objects.get_for_model(Empresa)
+    HistoricoEntrada.objects.create(
+        content_type=ct,
+        object_id=objetivo.empresa_id,
+        tipo="TAREFA_PROJETO",
+        data=date.today(),
+        conteudo=_conteudo_interacao_tarefa_concluida(objetivo),
+        registado_por=user,
+    )
+    return True

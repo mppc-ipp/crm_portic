@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CalendarioEvento } from "./types";
-import PlatformBadge from "./PlatformBadge";
+import { estiloEstadoPublicacao } from "@/lib/marketing-api";
 
-const ESTADO_CORES: Record<string, string> = {
-  RASCUNHO: "border-slate-300 bg-slate-50",
-  AGENDADO: "border-amber-300 bg-amber-50",
-  PUBLICADO: "border-green-300 bg-green-50",
-  PARCIAL: "border-orange-300 bg-orange-50",
-  FALHOU: "border-red-300 bg-red-50",
-  CANCELADO: "border-slate-200 bg-slate-100 opacity-60",
+const CORES_PADRAO: Record<string, string> = {
+  RASCUNHO: "#64748B",
+  AGENDADO: "#F59E0B",
+  A_PUBLICAR: "#3B82F6",
+  PUBLICADO: "#22C55E",
+  PARCIAL: "#F97316",
+  FALHOU: "#EF4444",
+  CANCELADO: "#94A3B8",
 };
 
 function diasDoMes(ano: number, mes: number) {
@@ -28,10 +29,20 @@ function chaveData(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-export default function PostCalendar({ eventos }: { eventos: CalendarioEvento[] }) {
+type Props = {
+  eventos: CalendarioEvento[];
+  coresEstado?: Record<string, string>;
+};
+
+export default function PostCalendar({ eventos, coresEstado = {} }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
+
+  const cores = useMemo(
+    () => ({ ...CORES_PADRAO, ...coresEstado }),
+    [coresEstado]
+  );
 
   const porDia = useMemo(() => {
     const map = new Map<string, CalendarioEvento[]>();
@@ -95,16 +106,20 @@ export default function PostCalendar({ eventos }: { eventos: CalendarioEvento[] 
             >
               <div className="text-right text-xs text-slate-500">{dia.getDate()}</div>
               <div className="mt-1 space-y-1">
-                {items.slice(0, 3).map((ev) => (
-                  <Link
-                    key={ev.id}
-                    href={`/marketing/publicacoes/${ev.id}`}
-                    className={`block truncate rounded border px-1 py-0.5 text-[10px] leading-tight ${ESTADO_CORES[ev.estado] ?? "bg-white"}`}
-                    title={ev.titulo}
-                  >
-                    {ev.titulo}
-                  </Link>
-                ))}
+                {items.slice(0, 3).map((ev) => {
+                  const cor = cores[ev.estado] ?? "#6B7280";
+                  return (
+                    <Link
+                      key={ev.id}
+                      href={`/marketing/publicacoes/${ev.id}`}
+                      className="block truncate rounded border px-1 py-0.5 text-[10px] leading-tight"
+                      style={estiloEstadoPublicacao(cor)}
+                      title={ev.titulo}
+                    >
+                      {ev.titulo}
+                    </Link>
+                  );
+                })}
                 {items.length > 3 && (
                   <span className="text-[10px] text-slate-400">+{items.length - 3}</span>
                 )}
@@ -112,20 +127,6 @@ export default function PostCalendar({ eventos }: { eventos: CalendarioEvento[] 
             </div>
           );
         })}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {eventos.slice(0, 8).map((ev) => (
-          <Link
-            key={`list-${ev.id}`}
-            href={`/marketing/publicacoes/${ev.id}`}
-            className="flex items-center gap-2 rounded-lg border px-2 py-1 text-sm hover:bg-slate-50"
-          >
-            <span>{ev.titulo}</span>
-            {ev.plataformas.map((p) => (
-              <PlatformBadge key={p} plataforma={p} />
-            ))}
-          </Link>
-        ))}
       </div>
     </div>
   );

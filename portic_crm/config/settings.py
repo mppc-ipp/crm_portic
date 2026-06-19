@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "django_htmx",
     "portic_crm.core",
     "portic_crm.empresas",
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     "portic_crm.dashboard",
     "portic_crm.administrador",
     "portic_crm.marketing",
+    "portic_crm.teletrabalho",
 ]
 
 MIDDLEWARE = [
@@ -123,6 +125,7 @@ CRM_VERSION = os.environ.get("CRM_VERSION", "0.1.0")
 GRUPO_ADMIN_GERAL = "AdministradorGeral"
 GRUPO_ADMIN_PARCIAL = "AdministradorParcial"
 GRUPO_UTILIZADOR_COMUM = "UtilizadorComum"
+GRUPO_GESTOR = "Gestor"
 
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND",
@@ -142,9 +145,16 @@ REST_FRAMEWORK = {
 from datetime import timedelta  # noqa: E402
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=12),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
+
+LOGIN_RATE_LIMIT = int(os.environ.get("LOGIN_RATE_LIMIT", "10"))
+LOGIN_RATE_WINDOW_SEC = int(os.environ.get("LOGIN_RATE_WINDOW_SEC", "900"))
+
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")
 
 CORS_ALLOWED_ORIGINS = [
     o.strip()
@@ -197,6 +207,26 @@ LINKEDIN_REDIRECT_URI = os.environ.get(
     "LINKEDIN_REDIRECT_URI",
     f"{API_PUBLIC_URL}/api/marketing/oauth/linkedin/callback",
 )
+TIKTOK_CLIENT_KEY = os.environ.get("TIKTOK_CLIENT_KEY", "")
+TIKTOK_CLIENT_SECRET = os.environ.get("TIKTOK_CLIENT_SECRET", "")
+TIKTOK_REDIRECT_URI = os.environ.get(
+    "TIKTOK_REDIRECT_URI",
+    f"{API_PUBLIC_URL}/api/marketing/oauth/tiktok/callback",
+)
 MARKETING_MEDIA_PUBLIC_BASE_URL = os.environ.get("MARKETING_MEDIA_PUBLIC_BASE_URL", API_PUBLIC_URL)
 MARKETING_DRY_RUN = os.environ.get("MARKETING_DRY_RUN", "False").lower() in ("true", "1", "yes")
 MARKETING_PUBLISH_RATE_LIMIT = int(os.environ.get("MARKETING_PUBLISH_RATE_LIMIT", "30"))
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS

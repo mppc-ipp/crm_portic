@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from portic_crm.core.audit import AcaoAuditoria, registar_auditoria
 from portic_crm.core.permissions import is_admin_geral
 from portic_crm.espacos.models import (
     AcaoTokenReserva,
@@ -17,6 +18,7 @@ from portic_crm.espacos.models import (
     PedidoReserva,
     Sala,
     StatusPedidoReserva,
+    TokenReserva,
     Unidade,
     Viatura,
 )
@@ -181,11 +183,41 @@ class ReservaCancelarAPIView(APIView):
 class ReservaTokenAPIView(APIView):
     permission_classes = []
 
+    _ACAO_MAP = {"aprovar": AcaoTokenReserva.APROVAR, "rejeitar": AcaoTokenReserva.REJEITAR}
+
+    def _token_valido(self, acao: str, token_str: str) -> bool:
+        return TokenReserva.objects.filter(
+            token=token_str,
+            acao=self._ACAO_MAP[acao],
+            usado=False,
+            expira_em__gte=timezone.now(),
+        ).exists()
+
     def get(self, request, acao):
+        if acao not in self._ACAO_MAP:
+            return HttpResponse("<h1>Acção inválida</h1>", status=400, content_type="text/html")
         token = request.query_params.get("token", "")
-        acao_map = {"aprovar": AcaoTokenReserva.APROVAR, "rejeitar": AcaoTokenReserva.REJEITAR}
+        if not token:
+            return HttpResponse("<h1>Token em falta</h1>", status=400, content_type="text/html")
+        if not self._token_valido(acao, token):
+            return HttpResponse("<h1>Token inválido ou expirado</h1>", status=400, content_type="text/html")
+        verbo = "aprovar" if acao == "aprovar" else "rejeitar"
+        html = (
+            f"<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            f"<title>Confirmar {verbo}</title></head><body>"
+            f"<h1>Confirmar {verbo} do pedido de reserva?</h1>"
+            f"<form method='post'><input type='hidden' name='token' value='{token}'>"
+            f"<button type='submit'>Sim, {verbo}</button></form>"
+            f"</body></html>"
+        )
+        return HttpResponse(html, content_type="text/html")
+
+    def post(self, request, acao):
+        if acao not in self._ACAO_MAP:
+            return HttpResponse("<h1>Acção inválida</h1>", status=400, content_type="text/html")
+        token = request.data.get("token") or request.POST.get("token", "")
         try:
-            svc.processar_token(acao_map[acao], token)
+            svc.processar_token(self._ACAO_MAP[acao], token)
             return HttpResponse(f"<h1>Pedido {acao} com sucesso</h1>", content_type="text/html")
         except Exception as e:
             return HttpResponse(f"<h1>Erro: {e}</h1>", status=400, content_type="text/html")
@@ -248,8 +280,15 @@ class AdminViaturaDetailAPIView(APIView):
         if not _admin_ok(request.user):
             return Response(status=403)
         viatura = get_object_or_404(Viatura, pk=pk)
+        nome = viatura.nome
         viatura.ativo = False
         viatura.save(update_fields=["ativo"])
+        registar_auditoria(
+            AcaoAuditoria.ESPACO_VIATURA_DESATIVADA,
+            f"Desactivou viatura «{nome}»",
+            actor=request.user,
+            alvo=viatura,
+        )
         return Response(status=204)
 
 
@@ -260,8 +299,15 @@ class AdminSalaDetailAPIView(APIView):
         if not _admin_ok(request.user):
             return Response(status=403)
         sala = get_object_or_404(Sala, pk=pk)
+        nome = sala.nome
         sala.ativo = False
         sala.save(update_fields=["ativo"])
+        registar_auditoria(
+            AcaoAuditoria.ESPACO_SALA_DESATIVADA,
+            f"Desactivou sala «{nome}»",
+            actor=request.user,
+            alvo=sala,
+        )
         return Response(status=204)
 
 
@@ -291,6 +337,12 @@ class AdminLocalizacoesAPIView(APIView):
             modulo=_modulo_from_request(request),
             ativo=True,
         )
+        registar_auditoria(
+            AcaoAuditoria.ESPACO_LOCAL_CRIADA,
+            f"Criou localização «{nome}»",
+            actor=request.user,
+            alvo=loc,
+        )
         return Response(LocalizacaoSerializer(loc).data, status=201)
 
 
@@ -301,8 +353,15 @@ class AdminLocalizacaoDetailAPIView(APIView):
         if not _admin_ok(request.user):
             return Response(status=403)
         loc = get_object_or_404(Localizacao, pk=pk)
+        nome = loc.nome
         loc.ativo = False
         loc.save(update_fields=["ativo"])
+        registar_auditoria(
+            AcaoAuditoria.ESPACO_LOCAL_DESATIVADA,
+            f"Desactivou localização «{nome}»",
+            actor=request.user,
+            alvo=loc,
+        )
         return Response(status=204)
 
     def patch(self, request, pk):
@@ -312,6 +371,12 @@ class AdminLocalizacaoDetailAPIView(APIView):
         if "ativo" in request.data:
             loc.ativo = bool(request.data["ativo"])
             loc.save(update_fields=["ativo"])
+        registar_auditoria(
+            AcaoAuditoria.ESPACO_LOCAL_EDITADA,
+            f"Editou localização «{loc.nome}»",
+            actor=request.user,
+            alvo=loc,
+        )
         return Response(LocalizacaoSerializer(loc).data)
 
 
@@ -353,6 +418,8 @@ class AdminHistoricoAPIView(APIView):
                     ("criado_em", "Criado em"),
                 ],
                 rows,
+                actor=request.user,
+                modulo="espacos",
             )
         return Response(items)
 
@@ -409,6 +476,8 @@ class AdminAuditoriaAPIView(APIView):
                     }
                     for it in items
                 ],
+                actor=request.user,
+                modulo="espacos",
             )
         return Response(items)
 
@@ -467,5 +536,7 @@ class AdminEstatisticasAPIView(APIView):
                 f"estatisticas_{modulo.lower()}.csv",
                 [("metrica", "Métrica"), ("valor", "Valor")],
                 rows,
+                actor=request.user,
+                modulo="espacos",
             )
         return Response(payload)

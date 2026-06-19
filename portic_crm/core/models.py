@@ -31,6 +31,13 @@ class HistoricoEntrada(TimeStampedModel):
         blank=True,
         related_name="historicos_registados",
     )
+    evento = models.OneToOneField(
+        "dashboard.Evento",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="interacao_empresa",
+    )
 
     class Meta:
         ordering = ["-data", "-created_at"]

@@ -5,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from portic_crm.core.permissions import is_admin_geral
 from portic_crm.projetos.models import (
     AtividadeProjeto,
     CampoPersonalizado,
@@ -34,6 +33,8 @@ from portic_crm.projetos.serializers import (
 )
 from portic_crm.projetos.services import (
     nome_responsavel_objetivo,
+    pode_editar_projeto,
+    pode_ver_projetos,
     queryset_projetos_visiveis,
     registar_atividade,
     usuario_pode_ver_projeto,
@@ -41,7 +42,26 @@ from portic_crm.projetos.services import (
 
 
 def _projeto_perm(user):
-    return is_admin_geral(user) or user.has_perm("projetos.view_projeto")
+    return pode_ver_projetos(user)
+
+
+def _projeto_editar(user):
+    return pode_editar_projeto(user)
+
+
+def _deny_leitura(user):
+    if not _projeto_perm(user):
+        return Response(status=403)
+    return None
+
+
+def _deny_mutacao(user):
+    denied = _deny_leitura(user)
+    if denied:
+        return denied
+    if not _projeto_editar(user):
+        return Response(status=403)
+    return None
 
 
 def _projeto_visivel(user, projeto_id):
@@ -64,7 +84,7 @@ class ObjetivoDetailAPIView(APIView):
             return Response(status=403)
         obj = _objetivo_visivel(request.user, pk)
         obj = (
-            Objetivo.objects.select_related("responsavel", "secao__projeto")
+            Objetivo.objects.select_related("responsavel", "empresa", "secao__projeto")
             .prefetch_related(
                 "subtarefas",
                 "comentarios__autor",
@@ -88,8 +108,9 @@ class SubtarefaListCreateAPIView(APIView):
         return Response(SubtarefaSerializer(qs, many=True).data)
 
     def post(self, request, objetivo_id):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         objetivo = _objetivo_visivel(request.user, objetivo_id)
         data = {**request.data, "objetivo": objetivo_id}
         ser = SubtarefaWriteSerializer(data=data)
@@ -109,8 +130,9 @@ class SubtarefaDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
         if not usuario_pode_ver_projeto(request.user, st.objetivo.projeto):
             return Response(status=403)
@@ -133,8 +155,9 @@ class SubtarefaDetailAPIView(APIView):
         return Response(SubtarefaSerializer(st).data)
 
     def delete(self, request, pk):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         st = get_object_or_404(Subtarefa.objects.select_related("objetivo__secao__projeto"), pk=pk)
         if not usuario_pode_ver_projeto(request.user, st.objetivo.projeto):
             return Response(status=403)
@@ -162,8 +185,9 @@ class ComentarioListCreateAPIView(APIView):
         return Response(ComentarioSerializer(qs, many=True).data)
 
     def post(self, request, objetivo_id):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         objetivo = _objetivo_visivel(request.user, objetivo_id)
         ser = ComentarioWriteSerializer(data={"texto": request.data.get("texto", ""), "objetivo": objetivo_id})
         ser.is_valid(raise_exception=True)
@@ -191,8 +215,9 @@ class DependenciaListCreateAPIView(APIView):
         return Response(DependenciaSerializer(qs, many=True).data)
 
     def post(self, request, objetivo_id):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         _objetivo_visivel(request.user, objetivo_id)
         predecessora_id = request.data.get("predecessora")
         sucessora_id = request.data.get("sucessora", objetivo_id)
@@ -214,8 +239,9 @@ class DependenciaDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         dep = get_object_or_404(
             DependenciaObjetivo.objects.select_related("predecessora", "sucessora__secao__projeto"),
             pk=pk,
@@ -245,8 +271,9 @@ class CampoPersonalizadoListCreateAPIView(APIView):
         return Response(CampoPersonalizadoSerializer(qs, many=True).data)
 
     def post(self, request, projeto_id):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         projeto = _projeto_visivel(request.user, projeto_id)
         data = {**request.data, "projeto": projeto_id}
         ser = CampoPersonalizadoWriteSerializer(data=data)
@@ -260,8 +287,9 @@ class CampoPersonalizadoDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         campo = get_object_or_404(CampoPersonalizado.objects.select_related("projeto"), pk=pk)
         if not usuario_pode_ver_projeto(request.user, campo.projeto):
             return Response(status=403)
@@ -276,8 +304,9 @@ class ValorCampoAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, objetivo_id):
-        if not _projeto_perm(request.user):
-            return Response(status=403)
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
         _objetivo_visivel(request.user, objetivo_id)
         campo_id = request.data.get("campo")
         valor, _ = ValorCampoPersonalizado.objects.update_or_create(
@@ -428,4 +457,6 @@ class ProjetoExportCSVAPIView(APIView):
                 ("subtarefas", "Subtarefas"),
             ],
             rows,
+            actor=request.user,
+            modulo="projetos",
         )

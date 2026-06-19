@@ -55,6 +55,13 @@ class Evento(TimeStampedModel):
         default=False,
         help_text="Se activo, o evento só é visível para quem o criou.",
     )
+    empresa = models.ForeignKey(
+        "empresas.Empresa",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eventos",
+    )
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -84,6 +91,13 @@ class Evento(TimeStampedModel):
         """Eventos activos ou que terminaram ontem (visíveis até ao dia seguinte ao fim)."""
         limite = timezone.localdate() - timedelta(days=1)
         qs = cls.objects.filter(data_fim__date__gte=limite).select_related("tipo").order_by("data_inicio")
+        return cls.filtrar_visiveis_para(qs, user)
+
+    @classmethod
+    def proximos_eventos(cls, user=None):
+        """Eventos futuros ou em curso (ainda não terminados)."""
+        agora = timezone.now()
+        qs = cls.objects.filter(data_fim__gte=agora).select_related("tipo").order_by("data_inicio")
         return cls.filtrar_visiveis_para(qs, user)
 
 

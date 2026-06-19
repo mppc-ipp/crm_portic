@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   addMonths,
   endOfMonth,
   format,
   isBefore,
-  isSameDay,
   startOfDay,
   startOfMonth,
   subMonths,
@@ -19,12 +19,21 @@ import {
   formatarDataHora,
   type EventoDetalhe,
   type TipoEventoConfig,
+  eventoIntersectaDia,
 } from "@/lib/eventos";
 import { EventoCalendario } from "@/lib/types";
 
 type Tab = "calendario" | "historico";
 
 export default function EventosPage() {
+  const searchParams = useSearchParams();
+  const empresaParam = searchParams.get("empresa");
+  const eventoParam = searchParams.get("evento");
+  const empresaIdFromUrl = empresaParam ? Number(empresaParam) : null;
+  const eventoIdFromUrl = eventoParam ? Number(eventoParam) : null;
+  const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  const abriuParamUrl = useRef(false);
+
   const [tab, setTab] = useState<Tab>("calendario");
   const [eventosCal, setEventosCal] = useState<EventoCalendario[]>([]);
   const [historico, setHistorico] = useState<EventoDetalhe[]>([]);
@@ -36,7 +45,9 @@ export default function EventosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEventoId, setModalEventoId] = useState<number | null>(null);
   const [modalReadOnly, setModalReadOnly] = useState(false);
-  const [pendingSlot, setPendingSlot] = useState<{ inicio: Date; fim: Date } | null>(null);
+  const [pendingOccurrences, setPendingOccurrences] = useState<Array<{ inicio: Date; fim: Date }> | null>(
+    null
+  );
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [aCarregar, setACarregar] = useState(false);
 
@@ -87,6 +98,38 @@ export default function EventosPage() {
   }, []);
 
   useEffect(() => {
+    if (!empresaIdFromUrl || Number.isNaN(empresaIdFromUrl)) {
+      setEmpresaNome(null);
+      return;
+    }
+    apiFetch<{ nome: string }>(`/api/empresas/${empresaIdFromUrl}`)
+      .then((empresa) => setEmpresaNome(empresa.nome))
+      .catch(() => setEmpresaNome(null));
+  }, [empresaIdFromUrl]);
+
+  useEffect(() => {
+    if (abriuParamUrl.current) return;
+    if (eventoIdFromUrl && !Number.isNaN(eventoIdFromUrl)) {
+      abriuParamUrl.current = true;
+      setModalEventoId(eventoIdFromUrl);
+      setModalReadOnly(false);
+      setPendingOccurrences(null);
+      setModalOpen(true);
+      return;
+    }
+    if (!empresaIdFromUrl || Number.isNaN(empresaIdFromUrl) || !podeGerir) return;
+    abriuParamUrl.current = true;
+    const inicioDefault = new Date();
+    inicioDefault.setHours(9, 0, 0, 0);
+    const fimDefault = new Date();
+    fimDefault.setHours(10, 0, 0, 0);
+    setModalEventoId(null);
+    setModalReadOnly(false);
+    setPendingOccurrences([{ inicio: inicioDefault, fim: fimDefault }]);
+    setModalOpen(true);
+  }, [empresaIdFromUrl, eventoIdFromUrl, podeGerir]);
+
+  useEffect(() => {
     if (tab === "calendario") void carregarCalendario();
     else void carregarHistorico();
   }, [tab, carregarCalendario, carregarHistorico]);
@@ -94,12 +137,12 @@ export default function EventosPage() {
   const eventosDoDia = useMemo(
     () =>
       eventosCal
-        .filter((e) => isSameDay(new Date(e.dataInicio), selectedDay))
+        .filter((e) => eventoIntersectaDia(e.dataInicio, e.dataFim, selectedDay))
         .sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime()),
     [eventosCal, selectedDay]
   );
 
-  const abrirCriar = (inicio?: Date, fim?: Date) => {
+  const abrirCriar = (occurrences?: Array<{ inicio: Date; fim: Date }>) => {
     if (!podeGerir) return;
     if (isPastSelectedDay && tab === "calendario") {
       setFeedback({ type: "error", message: "Não é possível criar eventos em datas passadas." });
@@ -107,14 +150,14 @@ export default function EventosPage() {
     }
     setModalEventoId(null);
     setModalReadOnly(false);
-    if (inicio && fim) {
-      setPendingSlot({ inicio, fim });
+    if (occurrences && occurrences.length > 0) {
+      setPendingOccurrences(occurrences);
     } else {
       const inicioDefault = new Date(selectedDay);
       inicioDefault.setHours(9, 0, 0, 0);
       const fimDefault = new Date(selectedDay);
       fimDefault.setHours(10, 0, 0, 0);
-      setPendingSlot({ inicio: inicioDefault, fim: fimDefault });
+      setPendingOccurrences([{ inicio: inicioDefault, fim: fimDefault }]);
     }
     setModalOpen(true);
   };
@@ -122,7 +165,7 @@ export default function EventosPage() {
   const abrirEvento = (id: number, readOnly = false) => {
     setModalEventoId(id);
     setModalReadOnly(readOnly);
-    setPendingSlot(null);
+    setPendingOccurrences(null);
     setModalOpen(true);
   };
 
@@ -191,6 +234,12 @@ export default function EventosPage() {
         </div>
       </div>
 
+      {empresaNome && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          A criar evento para a empresa <strong>{empresaNome}</strong>.
+        </div>
+      )}
+
       {feedback && (
         <div
           className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
@@ -221,13 +270,12 @@ export default function EventosPage() {
             onEventClick={(evento) => abrirEvento(Number(evento.id), !evento.editable)}
             onSelectOccurrences={(occurrences) => {
               if (!podeGerir) return;
-              const first = occurrences[0];
-              if (!first) return;
+              if (occurrences.length === 0) return;
               if (isPastSelectedDay) {
                 setFeedback({ type: "error", message: "Não é possível criar eventos em datas passadas." });
                 return;
               }
-              abrirCriar(first.inicio, first.fim);
+              abrirCriar(occurrences);
             }}
           />
 
@@ -299,13 +347,14 @@ export default function EventosPage() {
       <EventModal
         open={modalOpen}
         eventoId={modalEventoId}
-        initialInicio={pendingSlot?.inicio}
-        initialFim={pendingSlot?.fim}
+        empresaId={empresaIdFromUrl && !Number.isNaN(empresaIdFromUrl) ? empresaIdFromUrl : null}
+        empresaNome={empresaNome}
+        initialOccurrences={pendingOccurrences ?? undefined}
         readOnly={modalReadOnly}
         podeGerir={podeGerir}
         onClose={() => {
           setModalOpen(false);
-          setPendingSlot(null);
+          setPendingOccurrences(null);
         }}
         onSaved={handleSaved}
       />

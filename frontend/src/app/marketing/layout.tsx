@@ -7,7 +7,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
     <div>
       <h1 className="mb-1 text-2xl font-semibold text-slate-800">Marketing</h1>
       <p className="mb-4 text-sm text-slate-600">
-        Planeamento e publicação em Facebook, Instagram e LinkedIn.
+        Planeamento e publicação em Facebook, Instagram, LinkedIn e TikTok.
       </p>
       <MarketingSubNav />
       {children}

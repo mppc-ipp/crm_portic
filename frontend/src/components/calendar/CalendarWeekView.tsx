@@ -4,7 +4,7 @@ import { addDays, format, isSameDay, startOfWeek } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { CALENDARIO_HORAS } from "@/lib/calendarioHorario";
-import { classeEventoCalendario, estiloTipoEvento, eventoCobreHora } from "@/lib/eventos";
+import { classeEventoCalendario, estiloTipoEvento, eventoCobreHora, eventoIntersectaDia } from "@/lib/eventos";
 import { EventoCalendario } from "@/lib/types";
 
 type Props = {
@@ -117,9 +117,10 @@ export default function CalendarWeekView({
           <div key={hour} className="grid grid-cols-[70px_repeat(7,minmax(0,1fr))] gap-2">
             <div className="text-xs text-slate-500">{String(hour).padStart(2, "0")}:00</div>
             {days.map((d, dayIndex) => {
-              const eventosNaHora = eventos.filter((e) =>
-                isSameDay(new Date(e.dataInicio), d) &&
-                eventoCobreHora(e.dataInicio, e.dataFim, d, hour)
+              const eventosNaHora = eventos.filter(
+                (e) =>
+                  eventoIntersectaDia(e.dataInicio, e.dataFim, d) &&
+                  eventoCobreHora(e.dataInicio, e.dataFim, d, hour)
               );
               const estiloHora =
                 eventosNaHora.length > 0 ? estiloTipoEvento(eventosNaHora[0].tipoCor) : undefined;

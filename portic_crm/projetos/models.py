@@ -110,11 +110,19 @@ class Objetivo(TimeStampedModel):
         related_name="objetivos_responsavel",
     )
     responsavel_email = models.EmailField(blank=True, default="")
+    empresa = models.ForeignKey(
+        "empresas.Empresa",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tarefas",
+    )
     estado = models.CharField(
         max_length=20,
         choices=EstadoObjetivo.choices,
         default=EstadoObjetivo.PENDENTE,
     )
+    urgente = models.BooleanField(default=False)
     ordem = models.PositiveIntegerField(default=0)
 
     class Meta:

@@ -1,4 +1,4 @@
-export type Plataforma = "FACEBOOK" | "INSTAGRAM" | "LINKEDIN";
+export type Plataforma = "FACEBOOK" | "INSTAGRAM" | "LINKEDIN" | "TIKTOK";
 
 export type EstadoPublicacao =
   | "RASCUNHO"
@@ -74,6 +74,15 @@ export type CalendarioEvento = {
   plataformas: Plataforma[];
 };
 
+export type CorEstadoPublicacao = {
+  id: number;
+  codigo: EstadoPublicacao;
+  nome: string;
+  cor: string;
+  ordem: number;
+  created_at: string;
+};
+
 export type EstatisticasMarketing = {
   por_estado: Record<string, number>;
   por_plataforma: Record<string, number>;
@@ -91,4 +100,10 @@ export type LinkedInOrganizacao = {
   id: string;
   urn: string;
   nome: string;
+};
+
+export type TikTokPerfil = {
+  open_id: string;
+  display_name: string;
+  avatar_url?: string;
 };

@@ -42,6 +42,9 @@ type SistemaInfo = {
     linkedin_client_id: string;
     linkedin_client_secret_configured: boolean;
     linkedin_redirect_uri: string;
+    tiktok_client_key: string;
+    tiktok_client_secret_configured: boolean;
+    tiktok_redirect_uri: string;
     media_public_base_url: string;
     dry_run: boolean;
     configurado_na_bd: boolean;
@@ -81,6 +84,9 @@ export default function SistemaPage() {
     linkedin_client_id: "",
     linkedin_client_secret: "",
     linkedin_redirect_uri: "",
+    tiktok_client_key: "",
+    tiktok_client_secret: "",
+    tiktok_redirect_uri: "",
     media_public_base_url: "",
     dry_run: true,
   });
@@ -110,6 +116,11 @@ export default function SistemaPage() {
           ? SECRET_PLACEHOLDER
           : "",
         linkedin_redirect_uri: data.marketing.linkedin_redirect_uri,
+        tiktok_client_key: data.marketing.tiktok_client_key,
+        tiktok_client_secret: data.marketing.tiktok_client_secret_configured
+          ? SECRET_PLACEHOLDER
+          : "",
+        tiktok_redirect_uri: data.marketing.tiktok_redirect_uri,
         media_public_base_url: data.marketing.media_public_base_url,
         dry_run: data.marketing.dry_run,
       });
@@ -135,6 +146,8 @@ export default function SistemaPage() {
         meta_redirect_uri: marketingForm.meta_redirect_uri,
         linkedin_client_id: marketingForm.linkedin_client_id,
         linkedin_redirect_uri: marketingForm.linkedin_redirect_uri,
+        tiktok_client_key: marketingForm.tiktok_client_key,
+        tiktok_redirect_uri: marketingForm.tiktok_redirect_uri,
         media_public_base_url: marketingForm.media_public_base_url,
         dry_run: marketingForm.dry_run,
       } as Record<string, string | boolean>;
@@ -149,6 +162,12 @@ export default function SistemaPage() {
         marketingForm.linkedin_client_secret !== SECRET_PLACEHOLDER
       ) {
         marketingPayload.linkedin_client_secret = marketingForm.linkedin_client_secret;
+      }
+      if (
+        marketingForm.tiktok_client_secret &&
+        marketingForm.tiktok_client_secret !== SECRET_PLACEHOLDER
+      ) {
+        marketingPayload.tiktok_client_secret = marketingForm.tiktok_client_secret;
       }
 
       const data = await apiFetch<SistemaInfo>("/api/admin/sistema", {
@@ -169,6 +188,11 @@ export default function SistemaPage() {
           ? SECRET_PLACEHOLDER
           : "",
         linkedin_redirect_uri: data.marketing.linkedin_redirect_uri,
+        tiktok_client_key: data.marketing.tiktok_client_key,
+        tiktok_client_secret: data.marketing.tiktok_client_secret_configured
+          ? SECRET_PLACEHOLDER
+          : "",
+        tiktok_redirect_uri: data.marketing.tiktok_redirect_uri,
         media_public_base_url: data.marketing.media_public_base_url,
         dry_run: data.marketing.dry_run,
       });
@@ -328,7 +352,7 @@ export default function SistemaPage() {
         <section className="rounded-xl border bg-white p-5">
           <h3 className="mb-1 font-semibold">Integrações de marketing (redes sociais)</h3>
           <p className="mb-4 text-sm text-slate-600">
-            Chaves da Meta (Facebook/Instagram) e LinkedIn. Guardadas na base de dados e
+            Chaves da Meta (Facebook/Instagram), LinkedIn e TikTok. Guardadas na base de dados e
             utilizadas pelo módulo Marketing. Deixe o secret em branco para manter o actual.
           </p>
           {info.marketing.configurado_na_bd && (
@@ -411,7 +435,44 @@ export default function SistemaPage() {
               />
             </label>
             <label className="block text-sm text-slate-600 sm:col-span-2">
-              URL pública de media (Instagram)
+              TikTok Client Key
+              <input
+                value={marketingForm.tiktok_client_key}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, tiktok_client_key: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder="Client Key em developers.tiktok.com"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              TikTok Client Secret
+              <input
+                type="password"
+                value={marketingForm.tiktok_client_secret}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, tiktok_client_secret: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+                placeholder={
+                  info.marketing.tiktok_client_secret_configured
+                    ? "******** (preencha só para alterar)"
+                    : "Client Secret do TikTok"
+                }
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              TikTok Redirect URI
+              <input
+                value={marketingForm.tiktok_redirect_uri}
+                onChange={(e) =>
+                  setMarketingForm((f) => ({ ...f, tiktok_redirect_uri: e.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+              />
+            </label>
+            <label className="block text-sm text-slate-600 sm:col-span-2">
+              URL pública de media (Instagram / TikTok)
               <input
                 value={marketingForm.media_public_base_url}
                 onChange={(e) =>

@@ -18,24 +18,29 @@ from portic_crm.core.audit import AcaoAuditoria, registar_auditoria
 from portic_crm.core.permissions import is_admin_geral
 from portic_crm.marketing.models import (
     ContaSocial,
+    CorEstadoPublicacao,
     EstadoDestino,
     EstadoPublicacao,
     PlataformaSocial,
     Publicacao,
     PublicacaoDestino,
     PublicacaoMidia,
+    TipoMidia,
 )
 from portic_crm.marketing.serializers import (
     ContaSocialSerializer,
+    CorEstadoPublicacaoSerializer,
     LinkedInLigarContaSerializer,
     MediaUploadSerializer,
     MetaLigarContaSerializer,
     PublicacaoAgendarSerializer,
     PublicacaoMidiaSerializer,
     PublicacaoSerializer,
+    TikTokLigarContaSerializer,
 )
 from portic_crm.marketing.services import linkedin as li_svc
 from portic_crm.marketing.services import meta as meta_svc
+from portic_crm.marketing.services import tiktok as tiktok_svc
 from portic_crm.marketing.services.config import get_marketing_config
 from portic_crm.marketing.services.publisher import publicar_publicacao
 from portic_crm.marketing.services.tokens import encriptar_token
@@ -138,11 +143,13 @@ class PublicacaoViewSet(viewsets.ModelViewSet):
             return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
         pub = self.get_object()
         titulo = pub.titulo_interno
+        alvo = pub
         response = super().destroy(request, *args, **kwargs)
         registar_auditoria(
             AcaoAuditoria.MKT_PUBLICACAO_ELIMINADA,
             f"Eliminou publicação «{titulo}»",
             actor=request.user,
+            alvo=alvo,
         )
         return response
 
@@ -253,6 +260,12 @@ class PublicacaoRepublicarAPIView(APIView):
         )
         publicar_publicacao(pub)
         pub.refresh_from_db()
+        registar_auditoria(
+            AcaoAuditoria.MKT_PUBLICACAO_REPUBLICADA,
+            f"Republicou publicação «{pub.titulo_interno}»",
+            actor=request.user,
+            alvo=pub,
+        )
         return Response(PublicacaoSerializer(pub, context={"request": request}).data)
 
 
@@ -262,6 +275,8 @@ def _validar_publicacao(pub: Publicacao) -> str | None:
     plataformas = set(pub.destinos.values_list("plataforma", flat=True))
     if PlataformaSocial.INSTAGRAM in plataformas and not pub.midias.exists():
         return "Instagram exige pelo menos uma imagem"
+    if PlataformaSocial.TIKTOK in plataformas and not pub.midias.filter(tipo=TipoMidia.VIDEO).exists():
+        return "TikTok exige pelo menos um vídeo"
     if not pub.texto.strip() and PlataformaSocial.LINKEDIN in plataformas:
         return "Texto obrigatório para LinkedIn"
     return None
@@ -325,6 +340,12 @@ class MarketingMediaAPIView(APIView):
             tipo=data["tipo"],
             ordem=data["ordem"],
         )
+        registar_auditoria(
+            AcaoAuditoria.MKT_MIDIA_ADICIONADA,
+            f"Adicionou mídia ({data['tipo']}) à publicação «{publicacao.titulo_interno}»",
+            actor=request.user,
+            alvo=publicacao,
+        )
         return Response(
             {
                 "publicacao_id": publicacao.pk,
@@ -332,6 +353,38 @@ class MarketingMediaAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class MarketingMediaDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk: int):
+        if not _pode_editar(request.user) and not _pode_criar(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        midia = PublicacaoMidia.objects.select_related("publicacao").filter(pk=pk).first()
+        if not midia:
+            return Response({"error": "Mídia não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        publicacao = midia.publicacao
+        if publicacao.estado not in (EstadoPublicacao.RASCUNHO, EstadoPublicacao.CANCELADO):
+            return Response(
+                {"error": "Só é possível remover mídia de rascunhos"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if midia.ficheiro:
+            midia.ficheiro.delete(save=False)
+        titulo_pub = publicacao.titulo_interno
+        midia.delete()
+        registar_auditoria(
+            AcaoAuditoria.MKT_MIDIA_REMOVIDA,
+            f"Removeu mídia da publicação «{titulo_pub}»",
+            actor=request.user,
+            alvo=publicacao,
+        )
+        for ordem, restante in enumerate(publicacao.midias.order_by("ordem", "id")):
+            if restante.ordem != ordem:
+                restante.ordem = ordem
+                restante.save(update_fields=["ordem", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MarketingCalendarioAPIView(APIView):
@@ -618,3 +671,139 @@ class LinkedInOAuthLigarAPIView(APIView):
         )
         cache.delete(f"marketing_oauth_linkedin_result:{request.user.pk}")
         return Response(ContaSocialSerializer(conta).data, status=status.HTTP_201_CREATED)
+
+
+class TikTokOAuthStartAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _pode_gerir_contas(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        if not get_marketing_config().tiktok_client_key:
+            return Response(
+                {"error": "TikTok Client Key não configurado (Administração → Sistema)"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        state = secrets.token_urlsafe(32)
+        code_verifier, code_challenge = tiktok_svc.gerar_pkce()
+        cache.set(
+            f"marketing_oauth_tiktok:{state}",
+            {"user_id": request.user.pk, "code_verifier": code_verifier},
+            timeout=600,
+        )
+        return Response({"url": tiktok_svc.oauth_start_url(state, code_challenge)})
+
+
+class TikTokOAuthCallbackAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        if not code or not state:
+            return HttpResponseRedirect(f"{settings.WEB_URL}/marketing/contas?erro=oauth")
+        oauth_state = cache.get(f"marketing_oauth_tiktok:{state}")
+        cache.delete(f"marketing_oauth_tiktok:{state}")
+        if not oauth_state:
+            return HttpResponseRedirect(f"{settings.WEB_URL}/marketing/contas?erro=state")
+        user_id = oauth_state.get("user_id")
+        code_verifier = oauth_state.get("code_verifier", "")
+        if not user_id:
+            return HttpResponseRedirect(f"{settings.WEB_URL}/marketing/contas?erro=state")
+        try:
+            token_data = tiktok_svc.trocar_codigo_por_token(code, code_verifier)
+            access_token = token_data.get("access_token", "")
+            refresh_token = token_data.get("refresh_token", "")
+            expires_in = token_data.get("expires_in", 86400)
+            perfil = tiktok_svc.obter_perfil(access_token)
+            cache.set(
+                f"marketing_oauth_tiktok_result:{user_id}",
+                {
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "expires_in": expires_in,
+                    "perfil": perfil,
+                },
+                timeout=600,
+            )
+        except tiktok_svc.TikTokAPIError:
+            return HttpResponseRedirect(f"{settings.WEB_URL}/marketing/contas?erro=tiktok")
+        return HttpResponseRedirect(f"{settings.WEB_URL}/marketing/contas?oauth=tiktok")
+
+
+class TikTokOAuthDisponiveisAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _pode_gerir_contas(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        data = cache.get(f"marketing_oauth_tiktok_result:{request.user.pk}")
+        if not data:
+            return Response({"perfis": []})
+        perfil = data.get("perfil") or {}
+        return Response({"perfis": [perfil] if perfil.get("open_id") else []})
+
+
+class TikTokOAuthLigarAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not _pode_gerir_contas(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        oauth_data = cache.get(f"marketing_oauth_tiktok_result:{request.user.pk}")
+        if not oauth_data:
+            return Response({"error": "Sessão OAuth expirada"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TikTokLigarContaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        token = data.get("access_token") or oauth_data["access_token"]
+        refresh_token = oauth_data.get("refresh_token", "")
+        expires_in = oauth_data.get("expires_in", 86400)
+        perfil = oauth_data.get("perfil") or {}
+
+        conta, _ = ContaSocial.objects.update_or_create(
+            plataforma=PlataformaSocial.TIKTOK,
+            external_id=data["open_id"],
+            defaults={
+                "nome_exibicao": data["display_name"],
+                "access_token": encriptar_token(token),
+                "token_expira_em": timezone.now() + timedelta(seconds=int(expires_in)),
+                "metadata": {
+                    "open_id": data["open_id"],
+                    "display_name": data["display_name"],
+                    "avatar_url": perfil.get("avatar_url", ""),
+                    "refresh_token": encriptar_token(refresh_token) if refresh_token else "",
+                },
+                "ativa": True,
+                "ligada_por": request.user,
+            },
+        )
+        registar_auditoria(
+            AcaoAuditoria.MKT_CONTA_LIGADA,
+            f"Ligou conta TikTok «{conta.nome_exibicao}»",
+            actor=request.user,
+            alvo=conta,
+        )
+        cache.delete(f"marketing_oauth_tiktok_result:{request.user.pk}")
+        return Response(ContaSocialSerializer(conta).data, status=status.HTTP_201_CREATED)
+
+
+class CorEstadoPublicacaoViewSet(viewsets.GenericViewSet, viewsets.mixins.ListModelMixin, viewsets.mixins.UpdateModelMixin):
+    serializer_class = CorEstadoPublicacaoSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = CorEstadoPublicacao.objects.all()
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_queryset(self):
+        if not _pode_ver(self.request.user):
+            return CorEstadoPublicacao.objects.none()
+        return super().get_queryset()
+
+    def partial_update(self, request, *args, **kwargs):
+        if not is_admin_geral(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        allowed = {"cor", "nome"}
+        if not allowed.intersection(request.data.keys()):
+            return Response({"error": "Nada para actualizar"}, status=status.HTTP_400_BAD_REQUEST)
+        return super().partial_update(request, *args, **kwargs)

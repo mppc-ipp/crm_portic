@@ -42,6 +42,8 @@ class NotificacoesAPIView(APIView):
                     }
                     for n in items
                 ],
+                actor=request.user,
+                modulo="core",
             )
         return Response(
             {

@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from portic_crm.marketing.models import (
     ContaSocial,
+    CorEstadoPublicacao,
     EstadoDestino,
     EstadoPublicacao,
     PlataformaSocial,
@@ -21,6 +22,7 @@ LIMITES_TEXTO = {
     PlataformaSocial.FACEBOOK: 63206,
     PlataformaSocial.INSTAGRAM: 2200,
     PlataformaSocial.LINKEDIN: 3000,
+    PlataformaSocial.TIKTOK: 2200,
 }
 
 
@@ -262,6 +264,12 @@ class MediaUploadSerializer(serializers.Serializer):
     tipo = serializers.ChoiceField(choices=TipoMidia.choices, default=TipoMidia.IMAGEM)
     ordem = serializers.IntegerField(default=0, min_value=0)
 
+    def validate(self, attrs):
+        from portic_crm.marketing.validation import validar_ficheiro_midia
+
+        validar_ficheiro_midia(attrs["ficheiro"], attrs["tipo"])
+        return attrs
+
 
 class MetaLigarContaSerializer(serializers.Serializer):
     tipo = serializers.ChoiceField(choices=["FACEBOOK", "INSTAGRAM"])
@@ -276,4 +284,23 @@ class LinkedInLigarContaSerializer(serializers.Serializer):
     org_id = serializers.CharField()
     org_urn = serializers.CharField()
     org_nome = serializers.CharField()
-    access_token = serializers.CharField()
+    access_token = serializers.CharField(required=False, allow_blank=True)
+
+
+class TikTokLigarContaSerializer(serializers.Serializer):
+    open_id = serializers.CharField()
+    display_name = serializers.CharField()
+    access_token = serializers.CharField(required=False, allow_blank=True)
+
+
+class CorEstadoPublicacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CorEstadoPublicacao
+        fields = ["id", "codigo", "nome", "cor", "ordem", "created_at"]
+        read_only_fields = ["id", "codigo", "created_at"]
+
+    def validate_cor(self, value):
+        value = (value or "").strip()
+        if not value.startswith("#") or len(value) not in (4, 7):
+            raise serializers.ValidationError("Use uma cor hexadecimal (ex.: #3B82F6).")
+        return value

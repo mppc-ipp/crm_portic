@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import EmpresasColunasMenu, {
+  COLUNAS_EMPRESA,
+  COLUNAS_EMPRESA_PADRAO,
+  type ColunaEmpresaId,
+  lerColunasVisiveis,
+} from "@/components/empresas/EmpresasColunasMenu";
 import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
@@ -16,6 +22,9 @@ type Empresa = {
   estado: string;
   estado_display: string;
   email: string;
+  telefone: string;
+  localidade: string;
+  ultima_interacao: string;
 };
 
 type ContactoForm = {
@@ -72,6 +81,36 @@ function formatTelefone(value: string) {
 const inputClass = "mt-1 w-full rounded-lg border px-3 py-2";
 const labelClass = "block text-sm text-slate-600";
 
+function formatarDataLista(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-PT");
+}
+
+function valorColunaEmpresa(empresa: Empresa, coluna: ColunaEmpresaId): string {
+  switch (coluna) {
+    case "nif":
+      return empresa.nif;
+    case "cae":
+      return empresa.cae || "—";
+    case "tipo":
+      return empresa.tipo_display;
+    case "estado":
+      return empresa.estado_display;
+    case "setor":
+      return empresa.setor || "—";
+    case "email":
+      return empresa.email || "—";
+    case "telefone":
+      return empresa.telefone || "—";
+    case "localidade":
+      return empresa.localidade || "—";
+    case "ultima_interacao":
+      return formatarDataLista(empresa.ultima_interacao);
+    default:
+      return "—";
+  }
+}
+
 export default function EmpresasPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [q, setQ] = useState("");
@@ -83,6 +122,16 @@ export default function EmpresasPage() {
   const [aGuardar, setAGuardar] = useState(false);
   const [form, setForm] = useState(FORM_VAZIO);
   const [contactos, setContactos] = useState<ContactoForm[]>([{ ...CONTACTO_VAZIO }]);
+  const [colunasVisiveis, setColunasVisiveis] = useState<ColunaEmpresaId[]>(COLUNAS_EMPRESA_PADRAO);
+
+  useEffect(() => {
+    setColunasVisiveis(lerColunasVisiveis());
+  }, []);
+
+  const colunasAtivas = useMemo(
+    () => COLUNAS_EMPRESA.filter((coluna) => colunasVisiveis.includes(coluna.id)),
+    [colunasVisiveis]
+  );
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -427,23 +476,25 @@ export default function EmpresasPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="p-3 text-left">Nome</th>
-                <th className="p-3 text-left">NIF</th>
-                <th className="p-3 text-left">CAE</th>
-                <th className="p-3 text-left">Tipo</th>
-                <th className="p-3 text-left">Estado</th>
-                <th className="p-3 text-left">Setor</th>
-                <th className="p-3" />
+                {colunasAtivas.map((coluna) => (
+                  <th key={coluna.id} className="p-3 text-left">
+                    {coluna.label}
+                  </th>
+                ))}
+                <th className="p-3 text-right">
+                  <EmpresasColunasMenu visiveis={colunasVisiveis} onChange={setColunasVisiveis} />
+                </th>
               </tr>
             </thead>
             <tbody>
               {empresas.map((e) => (
                 <tr key={e.id} className="border-t hover:bg-slate-50">
                   <td className="p-3 font-medium">{e.nome}</td>
-                  <td className="p-3">{e.nif}</td>
-                  <td className="p-3">{e.cae || "—"}</td>
-                  <td className="p-3">{e.tipo_display}</td>
-                  <td className="p-3">{e.estado_display}</td>
-                  <td className="p-3">{e.setor || "—"}</td>
+                  {colunasAtivas.map((coluna) => (
+                    <td key={coluna.id} className="p-3">
+                      {valorColunaEmpresa(e, coluna.id)}
+                    </td>
+                  ))}
                   <td className="p-3 text-right">
                     <Link href={`/empresas/${e.id}`} className="text-portic hover:underline">
                       Ver

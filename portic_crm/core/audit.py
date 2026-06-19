@@ -11,6 +11,8 @@ from portic_crm.core.models import HistoricoEntrada
 class AcaoAuditoria:
     # Autenticação
     LOGIN = "LOGIN"
+    LOGIN_FALHADO = "LOGIN_FALHADO"
+    LOGOUT = "LOGOUT"
 
     # Administração — utilizadores e grupos
     USER_CRIADO = "USER_CRIADO"
@@ -91,10 +93,32 @@ class AcaoAuditoria:
     MKT_PUBLICACAO_CANCELADA = "MKT_PUB_CANCEL"
     MKT_CONTA_LIGADA = "MKT_CONTA_LIG"
     MKT_CONTA_DESLIGADA = "MKT_CONTA_DEL"
+    MKT_PUBLICACAO_REPUBLICADA = "MKT_PUB_REPOST"
+    MKT_MIDIA_ADICIONADA = "MKT_MIDIA_ADD"
+    MKT_MIDIA_REMOVIDA = "MKT_MIDIA_DEL"
+
+    # Teletrabalho
+    TELETRABALHO_REGISTO = "TELETRABALHO_REG"
+
+    # Espaços
+    ESPACO_RESERVA_CRIADA = "ESP_RES_CRIADA"
+    ESPACO_RESERVA_APROVADA = "ESP_RES_APROV"
+    ESPACO_RESERVA_REJEITADA = "ESP_RES_REJ"
+    ESPACO_RESERVA_CANCELADA = "ESP_RES_CANCEL"
+    ESPACO_SALA_DESATIVADA = "ESP_SALA_DEL"
+    ESPACO_VIATURA_DESATIVADA = "ESP_VIAT_DEL"
+    ESPACO_LOCAL_CRIADA = "ESP_LOC_CRIADA"
+    ESPACO_LOCAL_EDITADA = "ESP_LOC_EDIT"
+    ESPACO_LOCAL_DESATIVADA = "ESP_LOC_DEL"
+
+    # Exportações
+    EXPORT_CSV = "EXPORT_CSV"
 
 
 ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.LOGIN: "Login efectuado",
+    AcaoAuditoria.LOGIN_FALHADO: "Tentativa de login falhada",
+    AcaoAuditoria.LOGOUT: "Logout efectuado",
     AcaoAuditoria.USER_CRIADO: "Utilizador criado",
     AcaoAuditoria.USER_EDITADO: "Utilizador editado",
     AcaoAuditoria.USER_DESATIVADO: "Utilizador desactivado",
@@ -156,6 +180,20 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.MKT_PUBLICACAO_CANCELADA: "Agendamento de marketing cancelado",
     AcaoAuditoria.MKT_CONTA_LIGADA: "Conta social ligada",
     AcaoAuditoria.MKT_CONTA_DESLIGADA: "Conta social desligada",
+    AcaoAuditoria.MKT_PUBLICACAO_REPUBLICADA: "Publicação de marketing republicada",
+    AcaoAuditoria.MKT_MIDIA_ADICIONADA: "Mídia de marketing adicionada",
+    AcaoAuditoria.MKT_MIDIA_REMOVIDA: "Mídia de marketing removida",
+    AcaoAuditoria.TELETRABALHO_REGISTO: "Registo de teletrabalho",
+    AcaoAuditoria.ESPACO_RESERVA_CRIADA: "Reserva criada",
+    AcaoAuditoria.ESPACO_RESERVA_APROVADA: "Reserva aprovada",
+    AcaoAuditoria.ESPACO_RESERVA_REJEITADA: "Reserva rejeitada",
+    AcaoAuditoria.ESPACO_RESERVA_CANCELADA: "Reserva cancelada",
+    AcaoAuditoria.ESPACO_SALA_DESATIVADA: "Sala desactivada",
+    AcaoAuditoria.ESPACO_VIATURA_DESATIVADA: "Viatura desactivada",
+    AcaoAuditoria.ESPACO_LOCAL_CRIADA: "Localização criada",
+    AcaoAuditoria.ESPACO_LOCAL_EDITADA: "Localização editada",
+    AcaoAuditoria.ESPACO_LOCAL_DESATIVADA: "Localização desactivada",
+    AcaoAuditoria.EXPORT_CSV: "Exportação CSV",
 }
 
 
@@ -173,6 +211,10 @@ def rotulo_entrada_auditoria(entrada: HistoricoEntrada) -> str:
         return "Interação com empresa registada"
     if app == "startups" and model == "candidatura":
         return "Histórico de contacto registado"
+    if app == "espacos" and model == "pedidoreserva":
+        return rotulo_auditoria(entrada.tipo)
+    if app == "teletrabalho" and model == "registroteletrabalho":
+        return rotulo_auditoria(entrada.tipo)
     if app == "projetos":
         return rotulo_auditoria(entrada.tipo)
     return entrada.tipo.replace("_", " ").title()

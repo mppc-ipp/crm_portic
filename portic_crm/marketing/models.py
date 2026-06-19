@@ -8,6 +8,7 @@ class PlataformaSocial(models.TextChoices):
     FACEBOOK = "FACEBOOK", "Facebook"
     INSTAGRAM = "INSTAGRAM", "Instagram"
     LINKEDIN = "LINKEDIN", "LinkedIn"
+    TIKTOK = "TIKTOK", "TikTok"
 
 
 class EstadoPublicacao(models.TextChoices):
@@ -168,3 +169,27 @@ class PublicacaoLog(TimeStampedModel):
 
     def __str__(self):
         return self.mensagem[:80]
+
+
+class CorEstadoPublicacao(TimeStampedModel):
+    codigo = models.CharField(max_length=20, unique=True)
+    nome = models.CharField(max_length=120)
+    cor = models.CharField(max_length=7, default="#6B7280")
+    ordem = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordem", "nome"]
+        verbose_name = "cor de estado de publicação"
+        verbose_name_plural = "cores de estados de publicação"
+
+    def __str__(self):
+        return f"{self.nome} ({self.cor})"
+
+    @classmethod
+    def cor_por_codigo(cls, codigo: str) -> str:
+        obj = cls.objects.filter(codigo=codigo).first()
+        return obj.cor if obj else "#6B7280"
+
+    @classmethod
+    def mapa_cores(cls) -> dict[str, str]:
+        return {o.codigo: o.cor for o in cls.objects.all()}

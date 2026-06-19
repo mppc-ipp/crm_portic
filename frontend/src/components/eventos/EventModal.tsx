@@ -15,8 +15,9 @@ import {
 type Props = {
   open: boolean;
   eventoId?: number | null;
-  initialInicio?: Date;
-  initialFim?: Date;
+  empresaId?: number | null;
+  empresaNome?: string | null;
+  initialOccurrences?: Array<{ inicio: Date; fim: Date }>;
   readOnly?: boolean;
   podeGerir: boolean;
   onClose: () => void;
@@ -29,8 +30,9 @@ const labelClass = "block text-sm font-medium text-slate-700";
 export default function EventModal({
   open,
   eventoId,
-  initialInicio,
-  initialFim,
+  empresaId,
+  empresaNome,
+  initialOccurrences,
   readOnly = false,
   podeGerir,
   onClose,
@@ -50,6 +52,8 @@ export default function EventModal({
   const [detalhe, setDetalhe] = useState<EventoDetalhe | null>(null);
 
   const modoEdicao = Boolean(eventoId);
+  const multiplosDias =
+    !modoEdicao && initialOccurrences !== undefined && initialOccurrences.length > 1;
   const somenteLeitura =
     readOnly || (modoEdicao && detalhe !== null && !detalhe.editable);
 
@@ -88,13 +92,17 @@ export default function EventModal({
       setParticular(false);
       setAnexos([]);
       setFicheiros([]);
-      if (initialInicio) setDataInicio(paraDatetimeLocal(initialInicio.toISOString()));
-      else setDataInicio("");
-      if (initialFim) setDataFim(paraDatetimeLocal(initialFim.toISOString()));
-      else setDataFim("");
+      const first = initialOccurrences?.[0];
+      if (first) {
+        setDataInicio(paraDatetimeLocal(first.inicio.toISOString()));
+        setDataFim(paraDatetimeLocal(first.fim.toISOString()));
+      } else {
+        setDataInicio("");
+        setDataFim("");
+      }
     }
     setErro("");
-  }, [open, eventoId, initialInicio, initialFim]);
+  }, [open, eventoId, initialOccurrences]);
 
   const uploadAnexos = async (id: number, files: File[]) => {
     for (const file of files) {
@@ -128,27 +136,44 @@ export default function EventModal({
     setAGuardar(true);
     setErro("");
     try {
-      const payload = {
+      const basePayload = {
         titulo,
         tipo: Number(tipo),
-        data_inicio: deDatetimeLocal(dataInicio),
-        data_fim: deDatetimeLocal(dataFim),
         descricao,
         particular,
+        ...(empresaId && !modoEdicao ? { empresa: empresaId } : {}),
       };
+
+      const ocorrencias =
+        multiplosDias && initialOccurrences
+          ? initialOccurrences.map((occ) => ({
+              data_inicio: occ.inicio.toISOString(),
+              data_fim: occ.fim.toISOString(),
+            }))
+          : [
+              {
+                data_inicio: deDatetimeLocal(dataInicio),
+                data_fim: deDatetimeLocal(dataFim),
+              },
+            ];
 
       let id = eventoId;
       if (modoEdicao && eventoId) {
         await apiFetch(`/api/eventos/${eventoId}`, {
           method: "PATCH",
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...basePayload,
+            ...ocorrencias[0],
+          }),
         });
       } else {
-        const criado = await apiFetch<EventoDetalhe>("/api/eventos", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        id = criado.id;
+        for (const occ of ocorrencias) {
+          const criado = await apiFetch<EventoDetalhe>("/api/eventos", {
+            method: "POST",
+            body: JSON.stringify({ ...basePayload, ...occ }),
+          });
+          if (!id) id = criado.id;
+        }
       }
 
       if (id && ficheiros.length > 0) {
@@ -189,6 +214,9 @@ export default function EventModal({
             <h2 className="text-xl font-bold text-slate-900">
               {somenteLeitura ? "Detalhe do evento" : modoEdicao ? "Editar evento" : "Novo evento"}
             </h2>
+            {empresaNome && !modoEdicao && (
+              <p className="mt-1 text-sm text-slate-600">Empresa: {empresaNome}</p>
+            )}
             {detalhe?.passado && (
               <p className="mt-1 text-xs text-amber-700">Evento passado — apenas consulta</p>
             )}
@@ -247,7 +275,7 @@ export default function EventModal({
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
                 required
-                readOnly={somenteLeitura}
+                readOnly={somenteLeitura || multiplosDias}
               />
             </div>
             <div>
@@ -258,10 +286,17 @@ export default function EventModal({
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
                 required
-                readOnly={somenteLeitura}
+                readOnly={somenteLeitura || multiplosDias}
               />
             </div>
           </div>
+
+          {multiplosDias && initialOccurrences && (
+            <p className="text-sm text-slate-600">
+              Serão criados {initialOccurrences.length} eventos com o mesmo título e horário em cada
+              dia selecionado.
+            </p>
+          )}
 
           <div>
             <label className={labelClass}>Descrição</label>

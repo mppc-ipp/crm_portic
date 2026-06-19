@@ -51,6 +51,9 @@ export type Objetivo = {
   responsavel: number | null;
   responsavel_email?: string | null;
   responsavel_nome: string | null;
+  empresa?: number | null;
+  empresa_nome?: string | null;
+  urgente?: boolean;
   subtarefas_total?: number;
   subtarefas_concluidas?: number;
   comentarios_total?: number;

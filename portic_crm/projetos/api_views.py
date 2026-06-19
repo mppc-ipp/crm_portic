@@ -1,12 +1,11 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Prefetch, Q
 from rest_framework import status, viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from portic_crm.core.permissions import is_admin_geral
-from portic_crm.projetos.models import Objetivo, Projeto, Secao
+from portic_crm.projetos.models import EstadoObjetivo, Objetivo, Projeto, Secao
 from portic_crm.projetos.serializers import (
     ObjetivoListSerializer,
     ObjetivoWriteSerializer,
@@ -16,9 +15,14 @@ from portic_crm.projetos.serializers import (
     SecaoWriteSerializer,
 )
 from portic_crm.projetos.services import (
+    pode_criar_projeto,
+    pode_editar_projeto,
+    pode_eliminar_projeto,
+    pode_ver_projetos,
     preparar_projeto_para_leitura,
     queryset_projetos_visiveis,
     registar_atividade,
+    registar_interacao_empresa_tarefa_concluida,
     sincronizar_membros,
     usuario_pode_ver_projeto,
 )
@@ -28,7 +32,19 @@ class ProjetoPermissionMixin:
         return [IsAuthenticated()]
 
     def check_projeto_perm(self, request):
-        return is_admin_geral(request.user) or request.user.has_perm("projetos.view_projeto")
+        return pode_ver_projetos(request.user)
+
+    def _requer_criar(self, request):
+        if not pode_criar_projeto(request.user):
+            raise PermissionDenied("Sem permissão para criar.")
+
+    def _requer_editar(self, request):
+        if not pode_editar_projeto(request.user):
+            raise PermissionDenied("Sem permissão para editar.")
+
+    def _requer_eliminar(self, request):
+        if not pode_eliminar_projeto(request.user):
+            raise PermissionDenied("Sem permissão para eliminar.")
 
 
 class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
@@ -39,7 +55,7 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         if not self.check_projeto_perm(self.request):
             return Projeto.objects.none()
         objetivos_qs = (
-            Objetivo.objects.select_related("responsavel")
+            Objetivo.objects.select_related("responsavel", "empresa")
             .annotate(
                 _subtarefas_total=Count("subtarefas", distinct=True),
                 _subtarefas_concluidas=Count("subtarefas", filter=Q(subtarefas__concluida=True), distinct=True),
@@ -75,6 +91,7 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        self._requer_criar(request)
         write = self.get_serializer(data=request.data)
         write.is_valid(raise_exception=True)
         self.perform_create(write)
@@ -84,6 +101,7 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
+        self._requer_editar(request)
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         write = self.get_serializer(instance, data=request.data, partial=partial)
@@ -147,6 +165,10 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
                 f"Projeto «{projeto.nome}»: {estado_antes} → {projeto.estado}",
             )
 
+    def destroy(self, request, *args, **kwargs):
+        self._requer_eliminar(request)
+        return super().destroy(request, *args, **kwargs)
+
 
 class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
     queryset = Secao.objects.prefetch_related("objetivos").all()
@@ -165,6 +187,7 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         return SecaoSerializer
 
     def perform_create(self, serializer):
+        self._requer_editar(self.request)
         projeto = serializer.validated_data["projeto"]
         if not usuario_pode_ver_projeto(self.request.user, projeto):
             raise ValidationError({"projeto": "Sem permissão para este projeto."})
@@ -180,6 +203,7 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        self._requer_editar(self.request)
         instance = self.get_object()
         nome = serializer.validated_data.get("nome", instance.nome).strip()
         projeto = instance.projeto
@@ -193,6 +217,7 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         registar_atividade(projeto, self.request.user, "SECAO_ATUALIZADA", f"Atualizou a secção «{secao.nome}»")
 
     def destroy(self, request, *args, **kwargs):
+        self._requer_editar(request)
         instance = self.get_object()
         if instance.objetivos.exists():
             return Response(
@@ -209,14 +234,14 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
 
 
 class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
-    queryset = Objetivo.objects.select_related("responsavel", "secao__projeto").all()
+    queryset = Objetivo.objects.select_related("responsavel", "empresa", "secao__projeto").all()
 
     def get_queryset(self):
         if not self.check_projeto_perm(self.request):
             return Objetivo.objects.none()
         return Objetivo.objects.filter(
             secao__projeto__in=queryset_projetos_visiveis(self.request.user)
-        ).select_related("responsavel", "secao__projeto")
+        ).select_related("responsavel", "empresa", "secao__projeto")
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -224,6 +249,10 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         return ObjetivoListSerializer
 
     def perform_create(self, serializer):
+        self._requer_editar(self.request)
+        secao = serializer.validated_data.get("secao")
+        if secao and not usuario_pode_ver_projeto(self.request.user, secao.projeto):
+            raise ValidationError({"secao": "Sem permissão para este projeto."})
         obj = serializer.save()
         registar_atividade(
             obj.projeto,
@@ -234,7 +263,11 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        self._requer_editar(self.request)
         instance = self.get_object()
+        secao = serializer.validated_data.get("secao", instance.secao)
+        if secao and not usuario_pode_ver_projeto(self.request.user, secao.projeto):
+            raise ValidationError({"secao": "Sem permissão para este projeto."})
         estado_antes = instance.estado
         obj = serializer.save()
         registar_atividade(
@@ -252,8 +285,11 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
                 f"«{obj.titulo}»: {estado_antes} → {obj.estado}",
                 objetivo=obj,
             )
+            if obj.estado == EstadoObjetivo.CONCLUIDO:
+                registar_interacao_empresa_tarefa_concluida(obj, self.request.user)
 
     def perform_destroy(self, instance):
+        self._requer_editar(self.request)
         projeto = instance.projeto
         titulo = instance.titulo
         instance.delete()
