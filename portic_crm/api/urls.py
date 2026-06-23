@@ -12,7 +12,7 @@ from portic_crm.administrador.api_views import (
     AdminUtilizadoresListAPIView,
 )
 from portic_crm.api.auth_views import LoginAPIView, LogoutAPIView, MeAPIView
-from portic_crm.api.users_views import UserLookupAPIView, UsersListAPIView
+from portic_crm.api.users_views import UserLookupAPIView, UserSearchAPIView, UsersListAPIView
 from portic_crm.core.api_views import (
     NotificacaoDetailAPIView,
     NotificacoesAPIView,
@@ -30,6 +30,7 @@ from portic_crm.empresas.api_views import (
     EmpresaInteracaoDetailAPIView,
     EmpresaViewSet,
     TipoInteracaoViewSet,
+    TipoParceriaViewSet,
 )
 from portic_crm.espacos.api_urls import urlpatterns as espacos_urls
 from portic_crm.marketing.api_urls import urlpatterns as marketing_urls
@@ -37,6 +38,8 @@ from portic_crm.marketing.api_views import CorEstadoPublicacaoViewSet
 from portic_crm.projetos.api_views import ObjetivoViewSet, ProjetoViewSet, SecaoViewSet
 from portic_crm.projetos.projetos_api_urls import urlpatterns as projetos_extra_urls
 from portic_crm.teletrabalho.api_urls import urlpatterns as teletrabalho_urls
+from portic_crm.viaturas.api_urls import urlpatterns as viaturas_urls
+from portic_crm.avisos_seguranca.api_urls import urlpatterns as avisos_seguranca_urls
 from portic_crm.startups.api_views import (
     CandidaturaEstatisticasAPIView,
     CandidaturaHistoricoAPIView,
@@ -53,6 +56,7 @@ from portic_crm.startups.api_views import (
 
 router = DefaultRouter(trailing_slash=False)
 router.register(r"empresas/tipos-interacao", TipoInteracaoViewSet, basename="tipo-interacao")
+router.register(r"empresas/tipos-parceria", TipoParceriaViewSet, basename="tipo-parceria")
 router.register(r"empresas", EmpresaViewSet, basename="empresa")
 # Rotas aninhadas antes do recurso pai — senão "edicoes"/"secoes" são tratados como ID
 router.register(r"startups/edicoes", EdicaoViewSet, basename="edicao")
@@ -111,6 +115,7 @@ urlpatterns = [
     path("auth/logout", LogoutAPIView.as_view()),
     path("auth/me", MeAPIView.as_view()),
     path("users", UsersListAPIView.as_view()),
+    path("users/search", UserSearchAPIView.as_view()),
     path("users/lookup", UserLookupAPIView.as_view()),
     path("admin/utilizadores", AdminUtilizadoresListAPIView.as_view()),
     path("admin/utilizadores/<int:pk>", AdminUtilizadorDetailAPIView.as_view()),
@@ -121,4 +126,4 @@ urlpatterns = [
     path("admin/sistema", AdminSistemaAPIView.as_view()),
     path("auth/refresh", TokenRefreshView.as_view()),
     path("", include(router.urls)),
-] + projetos_extra_urls + espacos_urls + marketing_urls + teletrabalho_urls
+] + projetos_extra_urls + espacos_urls + marketing_urls + teletrabalho_urls + viaturas_urls + avisos_seguranca_urls

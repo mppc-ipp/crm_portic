@@ -88,7 +88,7 @@ class PublicacaoViewSet(viewsets.ModelViewSet):
         if not _pode_ver(self.request.user):
             return Publicacao.objects.none()
         qs = Publicacao.objects.select_related("criado_por").prefetch_related(
-            "midias", "destinos__conta", "logs"
+            "midias", "destinos__conta", "logs", "empresas"
         )
         params = self.request.query_params
         if estado := params.get("estado"):

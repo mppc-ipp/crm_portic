@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PostPreview from "./PostPreview";
 import MediaGallery, { type ValidacaoMidia } from "./MediaGallery";
+import EmpresasVincular, { type EmpresaVinculada } from "./EmpresasVincular";
 import type { ContaSocial, Plataforma, Publicacao } from "./types";
 import {
   actualizarPublicacao,
@@ -56,6 +57,9 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
     publicacao?.destinos.map((d) => ({ plataforma: d.plataforma, conta: d.conta })) ?? []
   );
   const [midias, setMidias] = useState(publicacao?.midias ?? []);
+  const [empresas, setEmpresas] = useState<EmpresaVinculada[]>(
+    publicacao?.empresas?.map((e) => ({ id: e.id, nome: e.nome })) ?? []
+  );
   const [publicacaoId, setPublicacaoId] = useState(publicacao?.id);
   const [agendadoPara, setAgendadoPara] = useState(
     publicacao?.agendado_para?.slice(0, 16) ?? ""
@@ -193,6 +197,7 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
       texto,
       link_url: linkUrl,
       destinos_input: destinos,
+      empresas_input: empresas.map((e) => e.id),
     };
     if (publicacaoId) {
       return actualizarPublicacao(publicacaoId, payload);
@@ -513,6 +518,14 @@ export default function PostEditor({ contas, publicacao, onGuardado }: Props) {
             disabled={!editavel}
           />
         </div>
+
+        <EmpresasVincular
+          selecionadas={empresas}
+          onChange={setEmpresas}
+          editavel={editavel}
+          labelClass={labelClass}
+          inputClass={inputClass}
+        />
 
         {editavel && (
           <div className="flex flex-wrap gap-2">

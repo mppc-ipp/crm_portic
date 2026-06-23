@@ -11,6 +11,14 @@ import EmpresasColunasMenu, {
 import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import { apiFetch } from "@/lib/api";
 
+type Contacto = {
+  id?: number;
+  nome: string;
+  cargo: string;
+  email: string;
+  telefone: string;
+};
+
 type Empresa = {
   id: number;
   nome: string;
@@ -19,11 +27,19 @@ type Empresa = {
   setor: string;
   tipo: string;
   tipo_display: string;
+  tipo_parceria: string;
+  tipo_parceria_display: string;
   estado: string;
   estado_display: string;
   email: string;
   telefone: string;
+  morada: string;
+  codigo_postal: string;
   localidade: string;
+  concelho: string;
+  distrito: string;
+  contactos: Contacto[];
+  created_at: string;
   ultima_interacao: string;
 };
 
@@ -32,6 +48,14 @@ type ContactoForm = {
   cargo: string;
   email: string;
   telefone: string;
+};
+
+type TipoParceria = {
+  id: number;
+  codigo: string;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
 };
 
 const TIPOS = [
@@ -58,6 +82,7 @@ const FORM_VAZIO = {
   cae: "",
   setor: "",
   tipo: "CLIENTE",
+  tipo_parceria: "",
   estado: "ATIVO",
   email: "",
   telefone: "",
@@ -86,6 +111,12 @@ function formatarDataLista(value: string | null | undefined) {
   return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-PT");
 }
 
+function formatarContactos(contactos: Contacto[] | undefined) {
+  if (!contactos?.length) return "—";
+  const nomes = contactos.map((c) => c.nome.trim()).filter(Boolean);
+  return nomes.length > 0 ? nomes.join(", ") : "—";
+}
+
 function valorColunaEmpresa(empresa: Empresa, coluna: ColunaEmpresaId): string {
   switch (coluna) {
     case "nif":
@@ -94,6 +125,8 @@ function valorColunaEmpresa(empresa: Empresa, coluna: ColunaEmpresaId): string {
       return empresa.cae || "—";
     case "tipo":
       return empresa.tipo_display;
+    case "tipo_parceria":
+      return empresa.tipo_parceria_display || "—";
     case "estado":
       return empresa.estado_display;
     case "setor":
@@ -102,8 +135,20 @@ function valorColunaEmpresa(empresa: Empresa, coluna: ColunaEmpresaId): string {
       return empresa.email || "—";
     case "telefone":
       return empresa.telefone || "—";
+    case "morada":
+      return empresa.morada || "—";
+    case "codigo_postal":
+      return empresa.codigo_postal || "—";
     case "localidade":
       return empresa.localidade || "—";
+    case "concelho":
+      return empresa.concelho || "—";
+    case "distrito":
+      return empresa.distrito || "—";
+    case "contactos":
+      return formatarContactos(empresa.contactos);
+    case "data_cadastro":
+      return formatarDataLista(empresa.created_at);
     case "ultima_interacao":
       return formatarDataLista(empresa.ultima_interacao);
     default:
@@ -123,9 +168,16 @@ export default function EmpresasPage() {
   const [form, setForm] = useState(FORM_VAZIO);
   const [contactos, setContactos] = useState<ContactoForm[]>([{ ...CONTACTO_VAZIO }]);
   const [colunasVisiveis, setColunasVisiveis] = useState<ColunaEmpresaId[]>(COLUNAS_EMPRESA_PADRAO);
+  const [tiposParceria, setTiposParceria] = useState<TipoParceria[]>([]);
 
   useEffect(() => {
     setColunasVisiveis(lerColunasVisiveis());
+  }, []);
+
+  useEffect(() => {
+    apiFetch<TipoParceria[]>("/api/empresas/tipos-parceria?ativos=1")
+      .then(setTiposParceria)
+      .catch(console.error);
   }, []);
 
   const colunasAtivas = useMemo(
@@ -261,6 +313,21 @@ export default function EmpresasPage() {
                   {TIPOS.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Tipo de parceria
+                <select
+                  value={form.tipo_parceria}
+                  onChange={(e) => setForm((f) => ({ ...f, tipo_parceria: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">—</option>
+                  {tiposParceria.map((t) => (
+                    <option key={t.codigo} value={t.codigo}>
+                      {t.nome}
                     </option>
                   ))}
                 </select>
@@ -471,7 +538,8 @@ export default function EmpresasPage() {
       {loading ? (
         <p className="text-slate-500">A carregar…</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="rounded-xl border bg-white">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
@@ -504,6 +572,7 @@ export default function EmpresasPage() {
               ))}
             </tbody>
           </table>
+          </div>
           {empresas.length === 0 && <p className="p-6 text-center text-slate-500">Nenhuma empresa encontrada.</p>}
         </div>
       )}

@@ -121,7 +121,7 @@ export default function ProjectSettingsModal({
           <fieldset>
             <legend className="text-sm font-medium text-slate-700">Membros</legend>
             <p className="mt-1 text-xs text-slate-500">
-              Adicione pessoas por email. Podem ser atribuídas a tarefas mesmo sem cadastro na plataforma.
+              Pesquise por nome ou email. Podem ser atribuídas a tarefas mesmo sem cadastro na plataforma.
             </p>
             <div className="mt-3">
               <MembroEmailList emails={emails} onChange={setEmails} membrosExistentes={membros} />

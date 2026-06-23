@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import DependencyIndicators from "./DependencyIndicators";
 import type { Objetivo, Secao } from "./types";
 
 type Props = {
@@ -98,7 +99,12 @@ export default function CalendarView({ secoes, onSelect }: Props) {
                         : "bg-proj-10 text-proj hover:bg-proj-20"
                     }`}
                   >
-                    {t.titulo}
+                    <span className="block truncate">{t.titulo}</span>
+                    <DependencyIndicators
+                      entradaTitulos={t.dependencias_entrada_titulos}
+                      saidaTitulos={t.dependencias_saida_titulos}
+                      compact
+                    />
                   </button>
                 ))}
               </div>

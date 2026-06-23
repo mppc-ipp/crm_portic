@@ -50,6 +50,11 @@ export type PublicacaoLog = {
   created_at: string;
 };
 
+export type PublicacaoEmpresa = {
+  id: number;
+  nome: string;
+};
+
 export type Publicacao = {
   id: number;
   titulo_interno: string;
@@ -61,6 +66,7 @@ export type Publicacao = {
   criado_por_nome: string;
   midias: PublicacaoMidia[];
   destinos: PublicacaoDestino[];
+  empresas: PublicacaoEmpresa[];
   logs: PublicacaoLog[];
   created_at: string;
   updated_at: string;

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Avatar from "./Avatar";
-import { T } from "./constants";
+import { T, URGENTE_TAG_CLASSES } from "./constants";
+import DependencyIndicators from "./DependencyIndicators";
 import SectionMenu from "./SectionMenu";
 import type { Objetivo, Secao } from "./types";
 import { estiloDataLimite, formatarData } from "./utils";
@@ -87,7 +88,9 @@ export default function BoardView({
                 >
                   {obj.titulo}
                   {obj.urgente && (
-                    <span className="ml-2 inline-block rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    <span
+                      className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENTE_TAG_CLASSES}`}
+                    >
                       urgente
                     </span>
                   )}
@@ -98,6 +101,13 @@ export default function BoardView({
                     {(obj.comentarios_total ?? 0) > 0 && ` 💬${obj.comentarios_total}`}
                   </p>
                 )}
+                <div className="mt-1">
+                  <DependencyIndicators
+                    entradaTitulos={obj.dependencias_entrada_titulos}
+                    saidaTitulos={obj.dependencias_saida_titulos}
+                    compact
+                  />
+                </div>
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {obj.data_limite && (

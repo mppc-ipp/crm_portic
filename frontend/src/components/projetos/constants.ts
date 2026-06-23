@@ -5,6 +5,8 @@ export const ESTADOS_OBJ = [
   { id: "BLOQUEADO", label: "Bloqueado", cor: "bg-rose-100 text-rose-700" },
 ] as const;
 
+export const URGENTE_TAG_CLASSES = "bg-red-100 text-red-700";
+
 export const VISTAS = [
   { id: "lista" as const, label: "Lista", icon: "☰" },
   { id: "quadro" as const, label: "Quadro", icon: "▦" },

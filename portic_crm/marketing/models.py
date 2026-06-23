@@ -94,6 +94,11 @@ class Publicacao(TimeStampedModel):
         blank=True,
         related_name="publicacoes_marketing",
     )
+    empresas = models.ManyToManyField(
+        "empresas.Empresa",
+        blank=True,
+        related_name="publicacoes_marketing",
+    )
 
     class Meta:
         ordering = ["-created_at"]

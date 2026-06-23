@@ -17,6 +17,8 @@ type Empresa = {
   setor: string;
   tipo: string;
   tipo_display: string;
+  tipo_parceria: string;
+  tipo_parceria_display: string;
   estado: string;
   estado_display: string;
   email: string;
@@ -33,6 +35,7 @@ type Interacao = {
   id: number;
   tipo: string;
   tipo_display: string;
+  tipo_cor: string;
   data: string | null;
   conteudo: string;
   registado_por_nome: string | null;
@@ -41,6 +44,15 @@ type Interacao = {
 };
 
 type TipoInteracao = {
+  id: number;
+  codigo: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+  ativo: boolean;
+};
+
+type TipoParceria = {
   id: number;
   codigo: string;
   nome: string;
@@ -159,6 +171,7 @@ function empresaParaForm(empresa: Empresa) {
     cae: empresa.cae || "",
     setor: empresa.setor || "",
     tipo: empresa.tipo,
+    tipo_parceria: empresa.tipo_parceria || "",
     estado: empresa.estado,
     email: empresa.email || "",
     telefone: empresa.telefone || "",
@@ -185,6 +198,7 @@ export default function EmpresaDetailPage() {
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
   const [tiposInteracao, setTiposInteracao] = useState<TipoInteracao[]>([]);
+  const [tiposParceria, setTiposParceria] = useState<TipoParceria[]>([]);
   const [aGuardar, setAGuardar] = useState(false);
   const [erro, setErro] = useState("");
   const [formInteracao, setFormInteracao] = useState({
@@ -200,6 +214,7 @@ export default function EmpresaDetailPage() {
     cae: "",
     setor: "",
     tipo: "CLIENTE",
+    tipo_parceria: "",
     estado: "ATIVO",
     email: "",
     telefone: "",
@@ -270,11 +285,17 @@ export default function EmpresaDetailPage() {
     }
   }, []);
 
+  const carregarTiposParceria = useCallback(async () => {
+    const data = await apiFetch<TipoParceria[]>("/api/empresas/tipos-parceria?ativos=1");
+    setTiposParceria(data);
+  }, []);
+
   useEffect(() => {
     carregarEmpresa().catch(console.error);
     carregarInteracoes().catch(console.error);
     carregarTiposInteracao().catch(console.error);
-  }, [carregarEmpresa, carregarInteracoes, carregarTiposInteracao]);
+    carregarTiposParceria().catch(console.error);
+  }, [carregarEmpresa, carregarInteracoes, carregarTiposInteracao, carregarTiposParceria]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -432,6 +453,7 @@ export default function EmpresaDetailPage() {
             NIF {empresa.nif}
             {empresa.cae && ` · CAE ${empresa.cae}`}
             {` · ${empresa.tipo_display}`}
+            {empresa.tipo_parceria_display && ` · ${empresa.tipo_parceria_display}`}
             {` · ${empresa.estado_display}`}
             {empresa.setor && ` · ${empresa.setor}`}
           </p>
@@ -633,7 +655,14 @@ export default function EmpresaDetailPage() {
           <article key={i.id} className="rounded-lg border bg-white p-4 text-sm">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                <span className="rounded-full bg-portic/10 px-2 py-0.5 font-medium text-portic">
+                <span
+                  className="rounded-full border px-2 py-0.5 font-medium"
+                  style={{
+                    backgroundColor: `${i.tipo_cor}22`,
+                    color: i.tipo_cor,
+                    borderColor: `${i.tipo_cor}55`,
+                  }}
+                >
                   {i.tipo_display}
                 </span>
                 {i.data && <span>Data: {formatarData(i.data)}</span>}
@@ -733,6 +762,33 @@ export default function EmpresaDetailPage() {
                       {TIPOS.map((t) => (
                         <option key={t.value} value={t.value}>
                           {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className={labelClass}>
+                    Tipo de parceria
+                    <select
+                      value={formEmpresa.tipo_parceria}
+                      onChange={(e) =>
+                        setFormEmpresa((f) => ({ ...f, tipo_parceria: e.target.value }))
+                      }
+                      className={inputClass}
+                    >
+                      <option value="">—</option>
+                      {(formEmpresa.tipo_parceria &&
+                      !tiposParceria.some((t) => t.codigo === formEmpresa.tipo_parceria)
+                        ? [
+                            {
+                              codigo: formEmpresa.tipo_parceria,
+                              nome: empresa?.tipo_parceria_display || formEmpresa.tipo_parceria,
+                            },
+                            ...tiposParceria,
+                          ]
+                        : tiposParceria
+                      ).map((t) => (
+                        <option key={t.codigo} value={t.codigo}>
+                          {t.nome}
                         </option>
                       ))}
                     </select>

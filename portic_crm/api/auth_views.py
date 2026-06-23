@@ -102,6 +102,16 @@ def _user_payload(user: User) -> dict:
 
             "gerir_teletrabalho": is_gestor_teletrabalho(user),
 
+            "add_viatura": is_admin_geral(user) or user.has_perm("viaturas.add_viatura"),
+
+            "change_viatura": is_admin_geral(user) or user.has_perm("viaturas.change_viatura"),
+
+            "delete_viatura": is_admin_geral(user) or user.has_perm("viaturas.delete_viatura"),
+
+            "gerir_avisos": is_admin_geral(user) or user.has_perm("avisos_seguranca.gerir_avisos"),
+
+            "gerir_ocorrencias": is_admin_geral(user) or user.has_perm("avisos_seguranca.gerir_ocorrencias"),
+
         },
 
     }

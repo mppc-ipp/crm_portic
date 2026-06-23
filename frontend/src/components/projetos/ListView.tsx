@@ -2,15 +2,36 @@
 
 import { useState } from "react";
 import Avatar from "./Avatar";
-import { ESTADOS_OBJ, T } from "./constants";
+import { ESTADOS_OBJ, T, URGENTE_TAG_CLASSES } from "./constants";
+import DependencyIndicators from "./DependencyIndicators";
 import SectionMenu from "./SectionMenu";
 import type { Objetivo, Secao } from "./types";
 import { estiloDataLimite, formatarData } from "./utils";
+
+function DragHandle() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <circle cx="7" cy="5" r="1.5" />
+      <circle cx="13" cy="5" r="1.5" />
+      <circle cx="7" cy="10" r="1.5" />
+      <circle cx="13" cy="10" r="1.5" />
+      <circle cx="7" cy="15" r="1.5" />
+      <circle cx="13" cy="15" r="1.5" />
+    </svg>
+  );
+}
 
 type Props = {
   secoes: Secao[];
   onSelect: (obj: Objetivo) => void;
   onToggleComplete: (obj: Objetivo) => void;
+  onMove: (obj: Objetivo, secaoId: number) => Promise<void>;
   onAddTask: (secaoId: number) => void;
   onAddSection: () => void;
   onRenameSection: (id: number, nome: string) => Promise<void>;
@@ -22,6 +43,7 @@ export default function ListView({
   secoes,
   onSelect,
   onToggleComplete,
+  onMove,
   onAddTask,
   onAddSection,
   onRenameSection,
@@ -29,7 +51,18 @@ export default function ListView({
   onMoveSection,
 }: Props) {
   const [colapsadas, setColapsadas] = useState<Set<number>>(new Set());
+  const [arrastando, setArrastando] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
   const ordenadas = [...secoes].sort((a, b) => a.ordem - b.ordem);
+
+  function soltarEmSecao(secaoId: number, e: React.DragEvent) {
+    e.preventDefault();
+    const id = Number(e.dataTransfer.getData("objId"));
+    const obj = secoes.flatMap((s) => s.objetivos).find((o) => o.id === id);
+    if (obj && obj.secao_id !== secaoId) void onMove(obj, secaoId);
+    setArrastando(null);
+    setDropTarget(null);
+  }
 
   function alternar(secaoId: number) {
     setColapsadas((prev) => {
@@ -42,7 +75,8 @@ export default function ListView({
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <div className="sticky top-0 z-10 grid grid-cols-[minmax(280px,1fr)_120px_120px_100px_36px] gap-2 border-b border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="sticky top-0 z-10 grid grid-cols-[24px_minmax(280px,1fr)_120px_120px_100px_36px] gap-2 border-b border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span />
         <span>Nome</span>
         <span>Responsável</span>
         <span>Data limite</span>
@@ -53,7 +87,22 @@ export default function ListView({
       {ordenadas.map((secao, idx) => {
         const aberta = !colapsadas.has(secao.id);
         return (
-          <div key={secao.id} className="border-b border-slate-100">
+          <div
+            key={secao.id}
+            className={`border-b border-slate-100 transition ${
+              dropTarget === secao.id ? "bg-proj-5 ring-2 ring-inset ring-proj" : ""
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (arrastando !== null) setDropTarget(secao.id);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setDropTarget((prev) => (prev === secao.id ? null : prev));
+              }
+            }}
+            onDrop={(e) => soltarEmSecao(secao.id, e)}
+          >
             <div className="flex w-full items-center gap-2 bg-slate-50/80 px-4 py-2.5 hover:bg-slate-100">
               <button
                 type="button"
@@ -80,8 +129,27 @@ export default function ListView({
                 {secao.objetivos.map((obj) => (
                   <div
                     key={obj.id}
-                    className={`group grid grid-cols-[minmax(280px,1fr)_120px_120px_100px_36px] items-center gap-2 border-t border-slate-50 px-4 py-2 ${T.hoverRowBg}`}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("objId", String(obj.id));
+                      e.dataTransfer.effectAllowed = "move";
+                      setArrastando(obj.id);
+                    }}
+                    onDragEnd={() => {
+                      setArrastando(null);
+                      setDropTarget(null);
+                    }}
+                    className={`group grid grid-cols-[24px_minmax(280px,1fr)_120px_120px_100px_36px] items-center gap-2 border-t border-slate-50 px-4 py-2 ${T.hoverRowBg} ${
+                      arrastando === obj.id ? "opacity-50" : ""
+                    }`}
                   >
+                    <span
+                      className="flex cursor-grab items-center justify-center text-slate-300 transition hover:text-slate-500 active:cursor-grabbing"
+                      aria-label="Arrastar tarefa"
+                      title="Arrastar para outra secção"
+                    >
+                      <DragHandle />
+                    </span>
                     <div className="flex min-w-0 items-center gap-2">
                       <button
                         type="button"
@@ -103,7 +171,9 @@ export default function ListView({
                       >
                         {obj.titulo}
                         {obj.urgente && (
-                          <span className="ml-2 inline-block rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          <span
+                            className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${URGENTE_TAG_CLASSES}`}
+                          >
                             urgente
                           </span>
                         )}
@@ -115,6 +185,12 @@ export default function ListView({
                         {(obj.comentarios_total ?? 0) > 0 && (
                           <span className="ml-1 text-[10px] text-slate-400">💬 {obj.comentarios_total}</span>
                         )}
+                        <span className="ml-2">
+                          <DependencyIndicators
+                            entradaTitulos={obj.dependencias_entrada_titulos}
+                            saidaTitulos={obj.dependencias_saida_titulos}
+                          />
+                        </span>
                       </button>
                     </div>
                     <div className="flex justify-center">

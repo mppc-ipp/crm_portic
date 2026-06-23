@@ -48,6 +48,10 @@ def get_login_redirect_url(user) -> str:
         return "/marketing/"
     if user.has_perm("teletrabalho.view_teletrabalho"):
         return "/teletrabalho/"
+    if user.has_perm("viaturas.view_viatura"):
+        return "/viaturas/"
+    if user.has_perm("avisos_seguranca.view_avisoseguranca"):
+        return "/avisos-seguranca/"
     if user.has_perm("administrador.gerir_utilizadores"):
         return "/administrador/"
     return "/dashboard/"
@@ -61,6 +65,8 @@ MODULE_PERMISSIONS = {
     "administrador": "administrador.gerir_utilizadores",
     "marketing": "marketing.view_publicacao",
     "teletrabalho": "teletrabalho.view_teletrabalho",
+    "viaturas": "viaturas.view_viatura",
+    "avisos_seguranca": "avisos_seguranca.view_avisoseguranca",
 }
 
 # Permissões granulares expostas na UI de administração
@@ -122,6 +128,23 @@ PERMISSION_CATALOG = {
         "permissions": [
             ("teletrabalho.view_teletrabalho", "Ver teletrabalho"),
             ("teletrabalho.gerir_teletrabalho", "Gerir registos de teletrabalho"),
+        ],
+    },
+    "viaturas": {
+        "label": "Viaturas",
+        "permissions": [
+            ("viaturas.view_viatura", "Ver viaturas"),
+            ("viaturas.add_viatura", "Criar viaturas"),
+            ("viaturas.change_viatura", "Editar viaturas"),
+            ("viaturas.delete_viatura", "Eliminar viaturas"),
+        ],
+    },
+    "avisos_seguranca": {
+        "label": "Avisos Segurança",
+        "permissions": [
+            ("avisos_seguranca.view_avisoseguranca", "Ver avisos de segurança"),
+            ("avisos_seguranca.gerir_avisos", "Gerir avisos"),
+            ("avisos_seguranca.gerir_ocorrencias", "Gerir ocorrências"),
         ],
     },
 }

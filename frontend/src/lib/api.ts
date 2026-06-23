@@ -178,6 +178,11 @@ export type UserSession = {
   permissoes?: {
     gerir_eventos?: boolean;
     gerir_teletrabalho?: boolean;
+    add_viatura?: boolean;
+    change_viatura?: boolean;
+    delete_viatura?: boolean;
+    gerir_avisos?: boolean;
+    gerir_ocorrencias?: boolean;
   };
   is_superuser?: boolean;
   is_staff?: boolean;

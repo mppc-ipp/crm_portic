@@ -3,6 +3,7 @@ from django.db.models import OuterRef, Subquery
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 
+from portic_crm.core.audit import ROTULOS_AUDITORIA
 from portic_crm.core.models import HistoricoEntrada
 from portic_crm.empresas.models import Empresa
 from portic_crm.projetos.models import Objetivo
@@ -16,6 +17,7 @@ def queryset_com_ultima_interacao(qs):
             content_type=ct,
             object_id=OuterRef("pk"),
         )
+        .exclude(tipo__in=ROTULOS_AUDITORIA)
         .annotate(efetiva=Coalesce("data", TruncDate("created_at")))
         .order_by("-efetiva", "-created_at")
         .values("efetiva")[:1]

@@ -512,6 +512,7 @@ export default function ProjetosPage() {
                       secoes={secoesFiltradas}
                       onSelect={(o) => setTarefaSelId(o.id)}
                       onToggleComplete={(o) => void toggleComplete(o)}
+                      onMove={moverTarefa}
                       onAddTask={abrirModalNovaTarefa}
                       {...propsSecao}
                     />

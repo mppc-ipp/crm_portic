@@ -132,6 +132,8 @@ class DashboardAPIView(APIView):
                 modulo="dashboard",
             )
 
+        return Response(payload)
+
 
 def _pode_ver_eventos(user) -> bool:
     return is_admin_geral(user) or user.has_perm("dashboard.view_dashboard")

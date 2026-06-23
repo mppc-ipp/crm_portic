@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch, Q
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -20,6 +20,7 @@ from portic_crm.projetos.services import (
     pode_eliminar_projeto,
     pode_ver_projetos,
     preparar_projeto_para_leitura,
+    queryset_objetivos_para_listagem,
     queryset_projetos_visiveis,
     registar_atividade,
     registar_interacao_empresa_tarefa_concluida,
@@ -54,15 +55,7 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         if not self.check_projeto_perm(self.request):
             return Projeto.objects.none()
-        objetivos_qs = (
-            Objetivo.objects.select_related("responsavel", "empresa")
-            .annotate(
-                _subtarefas_total=Count("subtarefas", distinct=True),
-                _subtarefas_concluidas=Count("subtarefas", filter=Q(subtarefas__concluida=True), distinct=True),
-                _comentarios_total=Count("comentarios", distinct=True),
-            )
-            .order_by("ordem", "id")
-        )
+        objetivos_qs = queryset_objetivos_para_listagem()
         return queryset_projetos_visiveis(self.request.user).select_related(
             "responsavel", "criado_por"
         ).prefetch_related(
@@ -171,7 +164,9 @@ class ProjetoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
 
 
 class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
-    queryset = Secao.objects.prefetch_related("objetivos").all()
+    queryset = Secao.objects.prefetch_related(
+        Prefetch("objetivos", queryset=queryset_objetivos_para_listagem())
+    ).all()
     serializer_class = SecaoSerializer
 
     def get_queryset(self):
@@ -179,7 +174,9 @@ class SecaoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
             return Secao.objects.none()
         return Secao.objects.filter(
             projeto__in=queryset_projetos_visiveis(self.request.user)
-        ).prefetch_related("objetivos")
+        ).prefetch_related(
+            Prefetch("objetivos", queryset=queryset_objetivos_para_listagem())
+        )
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -239,9 +236,9 @@ class ObjetivoViewSet(ProjetoPermissionMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         if not self.check_projeto_perm(self.request):
             return Objetivo.objects.none()
-        return Objetivo.objects.filter(
+        return queryset_objetivos_para_listagem().filter(
             secao__projeto__in=queryset_projetos_visiveis(self.request.user)
-        ).select_related("responsavel", "empresa", "secao__projeto")
+        ).select_related("secao__projeto")
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):

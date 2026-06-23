@@ -131,6 +131,8 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
     subtarefas_total = serializers.SerializerMethodField()
     subtarefas_concluidas = serializers.SerializerMethodField()
     comentarios_total = serializers.SerializerMethodField()
+    dependencias_entrada_titulos = serializers.SerializerMethodField()
+    dependencias_saida_titulos = serializers.SerializerMethodField()
 
     def get_responsavel_nome(self, obj):
         return nome_responsavel_objetivo(obj)
@@ -146,6 +148,26 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
 
     def get_comentarios_total(self, obj):
         return getattr(obj, "_comentarios_total", obj.comentarios.count())
+
+    def _titulos_dependencias_entrada(self, obj):
+        cache = getattr(obj, "_prefetched_objects_cache", {})
+        if "dependencias_entrada" in cache:
+            return [d.predecessora.titulo for d in obj.dependencias_entrada.all()]
+        return list(
+            obj.dependencias_entrada.values_list("predecessora__titulo", flat=True)
+        )
+
+    def _titulos_dependencias_saida(self, obj):
+        cache = getattr(obj, "_prefetched_objects_cache", {})
+        if "dependencias_saida" in cache:
+            return [d.sucessora.titulo for d in obj.dependencias_saida.all()]
+        return list(obj.dependencias_saida.values_list("sucessora__titulo", flat=True))
+
+    def get_dependencias_entrada_titulos(self, obj):
+        return self._titulos_dependencias_entrada(obj)
+
+    def get_dependencias_saida_titulos(self, obj):
+        return self._titulos_dependencias_saida(obj)
 
     class Meta:
         model = Objetivo
@@ -167,6 +189,8 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
             "subtarefas_total",
             "subtarefas_concluidas",
             "comentarios_total",
+            "dependencias_entrada_titulos",
+            "dependencias_saida_titulos",
         ]
 
 

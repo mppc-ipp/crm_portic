@@ -38,6 +38,13 @@ class HistoricoEntrada(TimeStampedModel):
         blank=True,
         related_name="interacao_empresa",
     )
+    publicacao = models.ForeignKey(
+        "marketing.Publicacao",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="interacoes_empresa",
+    )
 
     class Meta:
         ordering = ["-data", "-created_at"]

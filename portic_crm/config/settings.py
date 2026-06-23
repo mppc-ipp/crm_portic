@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "portic_crm.administrador",
     "portic_crm.marketing",
     "portic_crm.teletrabalho",
+    "portic_crm.viaturas",
+    "portic_crm.avisos_seguranca",
 ]
 
 MIDDLEWARE = [

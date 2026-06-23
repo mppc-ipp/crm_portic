@@ -12,6 +12,7 @@ from portic_crm.marketing.models import (
     PublicacaoLog,
     TipoMidia,
 )
+from portic_crm.marketing.services.empresa_interacao import registar_interacoes_empresa_publicacao
 from portic_crm.marketing.services import linkedin as li_svc
 from portic_crm.marketing.services import meta as meta_svc
 from portic_crm.marketing.services import tiktok as tiktok_svc
@@ -156,3 +157,5 @@ def publicar_publicacao(publicacao: Publicacao) -> None:
         publicacao.estado = EstadoPublicacao.FALHOU
 
     publicacao.save(update_fields=["estado", "publicado_em", "updated_at"])
+    if publicacao.estado in (EstadoPublicacao.PUBLICADO, EstadoPublicacao.PARCIAL):
+        registar_interacoes_empresa_publicacao(publicacao)

@@ -27,6 +27,12 @@ export default function CrmNav({ modulos, adminGeral, gerirTeletrabalho }: Props
       label: "Gestão Teletrabalho",
       show: adminGeral || Boolean(gerirTeletrabalho),
     },
+    { href: "/viaturas", label: "Viaturas", show: adminGeral || Boolean(modulos.viaturas) },
+    {
+      href: "/avisos-seguranca",
+      label: "Avisos Segurança",
+      show: adminGeral || Boolean(modulos.avisos_seguranca),
+    },
     { href: "/administrador", label: "Administração", show: podeAdmin },
   ];
 

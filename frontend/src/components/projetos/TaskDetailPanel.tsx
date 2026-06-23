@@ -121,11 +121,13 @@ export default function TaskDetailPanel({
     });
     setNovaDep("");
     await carregar();
+    await onRefresh();
   }
 
   async function removeDep(id: number) {
     await apiFetch(`/api/projetos/dependencias/${id}`, { method: "DELETE" });
     await carregar();
+    await onRefresh();
   }
 
   async function setValorCampo(campoId: number, valor: string) {
@@ -289,12 +291,16 @@ export default function TaskDetailPanel({
             <h4 className="mb-2 text-sm font-semibold text-slate-700">Dependências</h4>
             <p className="mb-2 text-xs text-slate-400">Esta tarefa depende de:</p>
             <ul className="space-y-1">
-              {tarefa.dependencias_entrada?.map((d) => (
-                <li key={d.id} className="flex items-center justify-between text-sm text-slate-600">
-                  <span>← {d.predecessora_titulo}</span>
-                  <button type="button" onClick={() => void removeDep(d.id)} className="text-xs text-rose-500">✕</button>
-                </li>
-              ))}
+              {tarefa.dependencias_entrada?.length ? (
+                tarefa.dependencias_entrada.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between text-sm text-slate-600">
+                    <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">← {d.predecessora_titulo}</span>
+                    <button type="button" onClick={() => void removeDep(d.id)} className="text-xs text-rose-500">✕</button>
+                  </li>
+                ))
+              ) : (
+                <li className="text-xs text-slate-400">Nenhuma dependência.</li>
+              )}
             </ul>
             <div className="mt-2 flex gap-2">
               <select
@@ -309,6 +315,19 @@ export default function TaskDetailPanel({
               </select>
               <button type="button" onClick={() => void addDependencia()} className="rounded bg-slate-100 px-3 text-sm">+</button>
             </div>
+
+            {(tarefa.dependencias_saida?.length ?? 0) > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs text-slate-400">Tarefas que dependem desta:</p>
+                <ul className="space-y-1">
+                  {tarefa.dependencias_saida?.map((d) => (
+                    <li key={d.id} className="text-sm text-slate-600">
+                      <span className="rounded bg-sky-50 px-2 py-0.5 text-sky-800">→ {d.sucessora_titulo}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Campos personalizados */}

@@ -28,6 +28,9 @@ class AcaoAuditoria:
     TIPO_INTERACAO_CRIADO = "TIPO_INTER_CRIADO"
     TIPO_INTERACAO_EDITADO = "TIPO_INTER_EDITADO"
     TIPO_INTERACAO_REMOVIDO = "TIPO_INTER_REMOVIDO"
+    TIPO_PARCERIA_CRIADO = "TIPO_PARC_CRIADO"
+    TIPO_PARCERIA_EDITADO = "TIPO_PARC_EDITADO"
+    TIPO_PARCERIA_REMOVIDO = "TIPO_PARC_REMOVIDO"
 
     # Configuração CRM — startups
     TIPO_HISTORICO_CRIADO = "TIPO_HIST_CRIADO"
@@ -100,6 +103,28 @@ class AcaoAuditoria:
     # Teletrabalho
     TELETRABALHO_REGISTO = "TELETRABALHO_REG"
 
+    # Viaturas
+    VIATURA_CRIADA = "VIATURA_CRIADA"
+    VIATURA_EDITADA = "VIATURA_EDITADA"
+    VIATURA_ELIMINADA = "VIATURA_ELIMINADA"
+
+    # Avisos Segurança
+    SEG_AVISO_CRIADO = "SEG_AVISO_CRIADO"
+    SEG_AVISO_EDITADO = "SEG_AVISO_EDITADO"
+    SEG_AVISO_REMOVIDO = "SEG_AVISO_REMOVIDO"
+    SEG_OCORRENCIA_CRIADA = "SEG_OCOR_CRIADA"
+    SEG_OCORRENCIA_EDITADA = "SEG_OCOR_EDITADA"
+    SEG_OCORRENCIA_REMOVIDA = "SEG_OCOR_REMOVIDA"
+    SEG_EVENTO_CRIADO = "SEG_EVENTO_CRIADO"
+    SEG_EVENTO_EDITADO = "SEG_EVENTO_EDITADO"
+    SEG_EVENTO_REMOVIDO = "SEG_EVENTO_REMOVIDO"
+    SEG_TIPO_EVENTO_CRIADO = "SEG_TIPO_EVT_CRIADO"
+    SEG_TIPO_EVENTO_EDITADO = "SEG_TIPO_EVT_EDITADO"
+    SEG_TIPO_EVENTO_REMOVIDO = "SEG_TIPO_EVT_REMOVIDO"
+    SEG_TIPO_OCOR_CRIADO = "SEG_TIPO_OCOR_CRIADO"
+    SEG_TIPO_OCOR_EDITADO = "SEG_TIPO_OCOR_EDITADO"
+    SEG_TIPO_OCOR_REMOVIDO = "SEG_TIPO_OCOR_REMOVIDO"
+
     # Espaços
     ESPACO_RESERVA_CRIADA = "ESP_RES_CRIADA"
     ESPACO_RESERVA_APROVADA = "ESP_RES_APROV"
@@ -128,6 +153,9 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.TIPO_INTERACAO_CRIADO: "Tipo de interação criado",
     AcaoAuditoria.TIPO_INTERACAO_EDITADO: "Tipo de interação editado",
     AcaoAuditoria.TIPO_INTERACAO_REMOVIDO: "Tipo de interação removido/desactivado",
+    AcaoAuditoria.TIPO_PARCERIA_CRIADO: "Tipo de parceria criado",
+    AcaoAuditoria.TIPO_PARCERIA_EDITADO: "Tipo de parceria editado",
+    AcaoAuditoria.TIPO_PARCERIA_REMOVIDO: "Tipo de parceria removido/desactivado",
     AcaoAuditoria.TIPO_HISTORICO_CRIADO: "Tipo de histórico criado",
     AcaoAuditoria.TIPO_HISTORICO_EDITADO: "Tipo de histórico editado",
     AcaoAuditoria.TIPO_HISTORICO_REMOVIDO: "Tipo de histórico removido/desactivado",
@@ -184,6 +212,24 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.MKT_MIDIA_ADICIONADA: "Mídia de marketing adicionada",
     AcaoAuditoria.MKT_MIDIA_REMOVIDA: "Mídia de marketing removida",
     AcaoAuditoria.TELETRABALHO_REGISTO: "Registo de teletrabalho",
+    AcaoAuditoria.VIATURA_CRIADA: "Viatura criada",
+    AcaoAuditoria.VIATURA_EDITADA: "Viatura editada",
+    AcaoAuditoria.VIATURA_ELIMINADA: "Viatura desactivada",
+    AcaoAuditoria.SEG_AVISO_CRIADO: "Aviso de segurança criado",
+    AcaoAuditoria.SEG_AVISO_EDITADO: "Aviso de segurança editado",
+    AcaoAuditoria.SEG_AVISO_REMOVIDO: "Aviso de segurança removido",
+    AcaoAuditoria.SEG_OCORRENCIA_CRIADA: "Ocorrência de segurança registada",
+    AcaoAuditoria.SEG_OCORRENCIA_EDITADA: "Ocorrência de segurança editada",
+    AcaoAuditoria.SEG_OCORRENCIA_REMOVIDA: "Ocorrência de segurança removida",
+    AcaoAuditoria.SEG_EVENTO_CRIADO: "Evento de segurança criado",
+    AcaoAuditoria.SEG_EVENTO_EDITADO: "Evento de segurança editado",
+    AcaoAuditoria.SEG_EVENTO_REMOVIDO: "Evento de segurança removido",
+    AcaoAuditoria.SEG_TIPO_EVENTO_CRIADO: "Tipo de evento de segurança criado",
+    AcaoAuditoria.SEG_TIPO_EVENTO_EDITADO: "Tipo de evento de segurança editado",
+    AcaoAuditoria.SEG_TIPO_EVENTO_REMOVIDO: "Tipo de evento de segurança removido",
+    AcaoAuditoria.SEG_TIPO_OCOR_CRIADO: "Tipo de ocorrência criado",
+    AcaoAuditoria.SEG_TIPO_OCOR_EDITADO: "Tipo de ocorrência editado",
+    AcaoAuditoria.SEG_TIPO_OCOR_REMOVIDO: "Tipo de ocorrência removido",
     AcaoAuditoria.ESPACO_RESERVA_CRIADA: "Reserva criada",
     AcaoAuditoria.ESPACO_RESERVA_APROVADA: "Reserva aprovada",
     AcaoAuditoria.ESPACO_RESERVA_REJEITADA: "Reserva rejeitada",

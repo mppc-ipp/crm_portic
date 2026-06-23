@@ -27,6 +27,7 @@ class Empresa(TimeStampedModel):
     cae = models.CharField("CAE", max_length=10, blank=True)
     setor = models.CharField(max_length=120, blank=True)
     tipo = models.CharField(max_length=20, choices=TipoEmpresa.choices)
+    tipo_parceria = models.CharField("Tipo de parceria", max_length=40, blank=True)
     estado = models.CharField(
         max_length=20,
         choices=EstadoEmpresa.choices,
@@ -70,9 +71,50 @@ class Contacto(TimeStampedModel):
         return f"{self.nome} ({self.empresa.nome})"
 
 
+class TipoParceria(TimeStampedModel):
+    codigo = models.CharField(max_length=40, unique=True)
+    nome = models.CharField(max_length=120)
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ordem", "nome"]
+        verbose_name = "tipo de parceria"
+        verbose_name_plural = "tipos de parceria"
+
+    def __str__(self):
+        return self.nome
+
+    @classmethod
+    def gerar_codigo(cls, nome: str, excluir_pk=None) -> str:
+        base = slugify(nome).upper().replace("-", "_") or "TIPO"
+        codigo = base[:40]
+        qs = cls.objects.filter(codigo=codigo)
+        if excluir_pk:
+            qs = qs.exclude(pk=excluir_pk)
+        if not qs.exists():
+            return codigo
+        n = 2
+        while True:
+            suffix = f"_{n}"
+            candidato = f"{base[: 40 - len(suffix)]}{suffix}"
+            qs = cls.objects.filter(codigo=candidato)
+            if excluir_pk:
+                qs = qs.exclude(pk=excluir_pk)
+            if not qs.exists():
+                return candidato
+            n += 1
+
+    @classmethod
+    def nome_por_codigo(cls, codigo: str) -> str | None:
+        tipo = cls.objects.filter(codigo=codigo).first()
+        return tipo.nome if tipo else None
+
+
 class TipoInteracao(TimeStampedModel):
     codigo = models.CharField(max_length=40, unique=True)
     nome = models.CharField(max_length=120)
+    cor = models.CharField(max_length=7, default="#6B7280")
     ordem = models.PositiveIntegerField(default=0)
     ativo = models.BooleanField(default=True)
 
@@ -108,3 +150,8 @@ class TipoInteracao(TimeStampedModel):
     def nome_por_codigo(cls, codigo: str) -> str | None:
         tipo = cls.objects.filter(codigo=codigo).first()
         return tipo.nome if tipo else None
+
+    @classmethod
+    def cor_por_codigo(cls, codigo: str) -> str:
+        tipo = cls.objects.filter(codigo=codigo).first()
+        return tipo.cor if tipo else "#6B7280"

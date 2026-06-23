@@ -17,6 +17,7 @@ from portic_crm.marketing.models import (
     PublicacaoMidia,
     TipoMidia,
 )
+from portic_crm.empresas.models import Empresa
 
 LIMITES_TEXTO = {
     PlataformaSocial.FACEBOOK: 63206,
@@ -78,13 +79,25 @@ class PublicacaoLogSerializer(serializers.ModelSerializer):
         fields = ["id", "nivel", "mensagem", "detalhes", "created_at"]
 
 
+class PublicacaoEmpresaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Empresa
+        fields = ["id", "nome"]
+
+
 class PublicacaoSerializer(serializers.ModelSerializer):
     midias = PublicacaoMidiaSerializer(many=True, read_only=True)
     destinos = PublicacaoDestinoSerializer(many=True, read_only=True)
     logs = PublicacaoLogSerializer(many=True, read_only=True)
+    empresas = PublicacaoEmpresaSerializer(many=True, read_only=True)
     criado_por_nome = serializers.SerializerMethodField()
     destinos_input = serializers.ListField(
         child=serializers.DictField(),
+        write_only=True,
+        required=False,
+    )
+    empresas_input = serializers.ListField(
+        child=serializers.IntegerField(),
         write_only=True,
         required=False,
     )
@@ -104,6 +117,8 @@ class PublicacaoSerializer(serializers.ModelSerializer):
             "midias",
             "destinos",
             "destinos_input",
+            "empresas",
+            "empresas_input",
             "logs",
             "created_at",
             "updated_at",
@@ -116,6 +131,7 @@ class PublicacaoSerializer(serializers.ModelSerializer):
             "criado_por_nome",
             "midias",
             "destinos",
+            "empresas",
             "logs",
             "created_at",
             "updated_at",
@@ -125,6 +141,14 @@ class PublicacaoSerializer(serializers.ModelSerializer):
         if obj.criado_por:
             return obj.criado_por.get_full_name() or obj.criado_por.username
         return ""
+
+    def _validar_empresas(self, empresas_input: list[int]):
+        if not empresas_input:
+            return
+        ids = list(dict.fromkeys(empresas_input))
+        encontradas = Empresa.objects.filter(pk__in=ids).count()
+        if encontradas != len(ids):
+            raise serializers.ValidationError({"empresas_input": "Uma ou mais empresas são inválidas"})
 
     def _validar_destinos(self, destinos_input: list[dict]):
         if not destinos_input:
@@ -154,6 +178,9 @@ class PublicacaoSerializer(serializers.ModelSerializer):
         destinos_input = attrs.get("destinos_input") or (
             self.instance and list(self.instance.destinos.values("plataforma", "conta_id"))
         )
+        empresas_input = attrs.get("empresas_input")
+        if empresas_input is not None:
+            self._validar_empresas(empresas_input)
         texto = attrs.get("texto", getattr(self.instance, "texto", ""))
         if destinos_input:
             normalized = []
@@ -175,6 +202,12 @@ class PublicacaoSerializer(serializers.ModelSerializer):
                     pass  # validado no create após upload separado
         return attrs
 
+    def _sync_empresas(self, publicacao: Publicacao, empresas_input: list[int] | None):
+        if empresas_input is None:
+            return
+        ids = list(dict.fromkeys(empresas_input))
+        publicacao.empresas.set(ids)
+
     def _sync_destinos(self, publicacao: Publicacao, destinos_input: list[dict]):
         if destinos_input is None:
             return
@@ -193,22 +226,27 @@ class PublicacaoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         destinos_input = validated_data.pop("destinos_input", [])
+        empresas_input = validated_data.pop("empresas_input", None)
         validated_data.pop("_tem_midias", None)
         user = self.context["request"].user
         publicacao = Publicacao.objects.create(criado_por=user, **validated_data)
         self._sync_destinos(publicacao, destinos_input)
+        self._sync_empresas(publicacao, empresas_input or [])
         return publicacao
 
     def update(self, instance, validated_data):
         if instance.estado not in (EstadoPublicacao.RASCUNHO, EstadoPublicacao.CANCELADO):
             raise serializers.ValidationError("Só é possível editar rascunhos ou cancelados")
         destinos_input = validated_data.pop("destinos_input", None)
+        empresas_input = validated_data.pop("empresas_input", None)
         validated_data.pop("_tem_midias", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         if destinos_input is not None:
             self._sync_destinos(instance, destinos_input)
+        if empresas_input is not None:
+            self._sync_empresas(instance, empresas_input)
         return instance
 
 

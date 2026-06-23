@@ -4,12 +4,18 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 
 from portic_crm.core.models import HistoricoEntrada
 from portic_crm.core.permissions import is_admin_geral
 from portic_crm.empresas.models import Empresa, TipoInteracao
-from portic_crm.projetos.models import AtividadeProjeto, MembroProjeto, Objetivo, Projeto
+from portic_crm.projetos.models import (
+    AtividadeProjeto,
+    DependenciaObjetivo,
+    MembroProjeto,
+    Objetivo,
+    Projeto,
+)
 
 User = get_user_model()
 
@@ -61,6 +67,30 @@ def queryset_projetos_visiveis(user):
     if email:
         filtro |= Q(membros__utilizador=user) | Q(membros__email__iexact=email)
     return Projeto.objects.filter(filtro).distinct()
+
+
+def queryset_objetivos_para_listagem():
+    return (
+        Objetivo.objects.select_related("responsavel", "empresa")
+        .annotate(
+            _subtarefas_total=Count("subtarefas", distinct=True),
+            _subtarefas_concluidas=Count(
+                "subtarefas", filter=Q(subtarefas__concluida=True), distinct=True
+            ),
+            _comentarios_total=Count("comentarios", distinct=True),
+        )
+        .prefetch_related(
+            Prefetch(
+                "dependencias_entrada",
+                queryset=DependenciaObjetivo.objects.select_related("predecessora"),
+            ),
+            Prefetch(
+                "dependencias_saida",
+                queryset=DependenciaObjetivo.objects.select_related("sucessora"),
+            ),
+        )
+        .order_by("ordem", "id")
+    )
 
 
 def _validar_emails(emails: list) -> list[str]:

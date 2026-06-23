@@ -57,6 +57,8 @@ export type Objetivo = {
   subtarefas_total?: number;
   subtarefas_concluidas?: number;
   comentarios_total?: number;
+  dependencias_entrada_titulos?: string[];
+  dependencias_saida_titulos?: string[];
   subtarefas?: Subtarefa[];
   comentarios?: Comentario[];
   dependencias_entrada?: Dependencia[];
