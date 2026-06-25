@@ -1,11 +1,13 @@
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from portic_crm.projetos.models import (
+    AnexoObjetivo,
     AtividadeProjeto,
     CampoPersonalizado,
     ComentarioObjetivo,
@@ -17,6 +19,8 @@ from portic_crm.projetos.models import (
     VistaGuardada,
 )
 from portic_crm.projetos.serializers import (
+    AnexoObjetivoSerializer,
+    AnexoProjetoSerializer,
     AtividadeSerializer,
     CampoPersonalizadoSerializer,
     CampoPersonalizadoWriteSerializer,
@@ -31,6 +35,8 @@ from portic_crm.projetos.serializers import (
     VistaGuardadaSerializer,
     VistaGuardadaWriteSerializer,
 )
+
+TAMANHO_MAX_ANEXO_BYTES = 25 * 1024 * 1024
 from portic_crm.projetos.services import (
     nome_responsavel_objetivo,
     pode_editar_projeto,
@@ -91,10 +97,11 @@ class ObjetivoDetailAPIView(APIView):
                 "dependencias_entrada__predecessora",
                 "dependencias_saida__sucessora",
                 "valores_campos__campo",
+                "anexos__carregado_por",
             )
             .get(pk=obj.pk)
         )
-        return Response(ObjetivoSerializer(obj).data)
+        return Response(ObjetivoSerializer(obj, context={"request": request}).data)
 
 
 class SubtarefaListCreateAPIView(APIView):
@@ -459,4 +466,99 @@ class ProjetoExportCSVAPIView(APIView):
             rows,
             actor=request.user,
             modulo="projetos",
+        )
+
+
+class AnexoObjetivoListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, objetivo_id):
+        if not _projeto_perm(request.user):
+            return Response(status=403)
+        _objetivo_visivel(request.user, objetivo_id)
+        qs = AnexoObjetivo.objects.filter(objetivo_id=objetivo_id).select_related(
+            "carregado_por"
+        )
+        return Response(
+            AnexoObjetivoSerializer(qs, many=True, context={"request": request}).data
+        )
+
+    def post(self, request, objetivo_id):
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
+        objetivo = _objetivo_visivel(request.user, objetivo_id)
+        ficheiro = request.FILES.get("ficheiro")
+        if not ficheiro:
+            return Response(
+                {"error": "Ficheiro obrigatório."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if ficheiro.size > TAMANHO_MAX_ANEXO_BYTES:
+            return Response(
+                {"error": "O ficheiro não pode exceder 25 MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        anexo = AnexoObjetivo.objects.create(
+            objetivo=objetivo,
+            ficheiro=ficheiro,
+            nome_original=ficheiro.name,
+            tamanho=ficheiro.size,
+            tipo_mime=ficheiro.content_type or "",
+            carregado_por=request.user,
+        )
+        registar_atividade(
+            objetivo.projeto,
+            request.user,
+            "ANEXO_CRIADO",
+            f"Adicionou anexo «{anexo.nome_original}» em «{objetivo.titulo}»",
+            objetivo=objetivo,
+        )
+        return Response(
+            AnexoObjetivoSerializer(anexo, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AnexoObjetivoDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        denied = _deny_mutacao(request.user)
+        if denied:
+            return denied
+        anexo = get_object_or_404(
+            AnexoObjetivo.objects.select_related("objetivo__secao__projeto"), pk=pk
+        )
+        if not usuario_pode_ver_projeto(request.user, anexo.objetivo.projeto):
+            return Response(status=403)
+        objetivo = anexo.objetivo
+        nome = anexo.nome_original
+        if anexo.ficheiro:
+            anexo.ficheiro.delete(save=False)
+        anexo.delete()
+        registar_atividade(
+            objetivo.projeto,
+            request.user,
+            "ANEXO_ELIMINADO",
+            f"Eliminou anexo «{nome}» de «{objetivo.titulo}»",
+            objetivo=objetivo,
+        )
+        return Response(status=204)
+
+
+class ProjetoAnexosAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, projeto_id):
+        if not _projeto_perm(request.user):
+            return Response(status=403)
+        _projeto_visivel(request.user, projeto_id)
+        qs = (
+            AnexoObjetivo.objects.filter(objetivo__secao__projeto_id=projeto_id)
+            .select_related("carregado_por", "objetivo__secao")
+            .order_by("-created_at")
+        )
+        return Response(
+            AnexoProjetoSerializer(qs, many=True, context={"request": request}).data
         )

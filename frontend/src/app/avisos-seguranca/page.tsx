@@ -5,7 +5,6 @@ import { apiFetch, getStoredUser } from "@/lib/api";
 import { agruparPorDia } from "@/lib/agrupar";
 import ExportCsvButton from "@/components/reports/ExportCsvButton";
 import {
-  ESTADOS_OCORRENCIA,
   NIVEIS_AVISO,
   estiloTipoOcorrencia,
   formatarDataHoraSeguranca,
@@ -16,6 +15,7 @@ import {
   type AgendaSeguranca,
   type AvisoSeguranca,
   type EstadoOcorrencia,
+  type EstadoOcorrenciaConfig,
   type NivelAviso,
   type OcorrenciaSeguranca,
   type TipoOcorrencia,
@@ -57,6 +57,7 @@ export default function AvisosSegurancaPage() {
   const [avisos, setAvisos] = useState<AvisoSeguranca[]>([]);
   const [ocorrencias, setOcorrencias] = useState<OcorrenciaSeguranca[]>([]);
   const [tiposOcorrencia, setTiposOcorrencia] = useState<TipoOcorrencia[]>([]);
+  const [estadosOcorrencia, setEstadosOcorrencia] = useState<EstadoOcorrenciaConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
@@ -85,16 +86,18 @@ export default function AvisosSegurancaPage() {
     setLoading(true);
     setErro("");
     try {
-      const [agendaData, avisosData, ocorrenciasData, tiposData] = await Promise.all([
+      const [agendaData, avisosData, ocorrenciasData, tiposData, estadosData] = await Promise.all([
         apiFetch<AgendaSeguranca>("/api/avisos-seguranca/agenda"),
         apiFetch<AvisoSeguranca[]>("/api/avisos-seguranca/avisos?ativos=0"),
         apiFetch<OcorrenciaSeguranca[]>("/api/avisos-seguranca/ocorrencias"),
         apiFetch<TipoOcorrencia[]>("/api/avisos-seguranca/ocorrencias/tipos?ativos=1"),
+        apiFetch<EstadoOcorrenciaConfig[]>("/api/avisos-seguranca/ocorrencias/estados?ativos=1"),
       ]);
       setAgenda(agendaData);
       setAvisos(avisosData);
       setOcorrencias(ocorrenciasData);
       setTiposOcorrencia(tiposData);
+      setEstadosOcorrencia(estadosData);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar dados.");
     } finally {
@@ -182,7 +185,7 @@ export default function AvisosSegurancaPage() {
       tipoId: tiposOcorrencia[0] ? String(tiposOcorrencia[0].id) : "",
       dataHora: toDatetimeLocal(new Date().toISOString()),
       local: "",
-      estado: "ABERTA",
+      estado: estadosOcorrencia[0]?.codigo ?? "ABERTA",
       observacoesResolucao: "",
     });
     setModalOcorrencia("criar");
@@ -250,34 +253,36 @@ export default function AvisosSegurancaPage() {
         ) : diasAgenda.length === 0 ? (
           <p className="text-sm text-slate-500">Sem eventos agendados.</p>
         ) : (
-          <div className="space-y-6">
-            {diasAgenda.map((dia) => (
-              <div key={dia}>
-                <h3 className="mb-2 text-sm font-semibold capitalize text-slate-700">{formatarDiaSeguranca(dia)}</h3>
-                <ul className="space-y-2">
-                  {agenda[dia].map((ev) => (
-                    <li
-                      key={ev.id}
-                      className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-                    >
-                      <span
-                        className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: ev.tipoCor }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900">{ev.titulo}</p>
-                        <p className="text-xs text-slate-500">
-                          {formatarDataHoraSeguranca(ev.dataInicio)} – {formatarDataHoraSeguranca(ev.dataFim)}
-                        </p>
-                        {ev.descricao && <p className="mt-1 text-sm text-slate-600">{ev.descricao}</p>}
-                      </div>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600">{ev.tipo}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <ul className="space-y-2">
+            {diasAgenda.flatMap((dia) =>
+              agenda[dia].map((ev) => (
+                <li
+                  key={ev.id}
+                  className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+                >
+                  <span
+                    className="mt-1 h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: ev.tipoCor }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                      {ev.titulo}
+                      {ev.emCurso && (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          Em curso
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {formatarDataHoraSeguranca(ev.dataInicio)} – {formatarDataHoraSeguranca(ev.dataFim)}
+                    </p>
+                    {ev.descricao && <p className="mt-1 text-sm text-slate-600">{ev.descricao}</p>}
+                  </div>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600">{ev.tipo}</span>
+                </li>
+              ))
+            )}
+          </ul>
         )}
       </section>
 
@@ -416,7 +421,12 @@ export default function AvisosSegurancaPage() {
                             </td>
                             <td className="px-4 py-3 text-slate-600">{o.local || "—"}</td>
                             <td className="px-4 py-3">
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{o.estadoDisplay}</span>
+                              <span
+                                className="rounded-full border px-2 py-0.5 text-xs font-medium"
+                                style={estiloTipoOcorrencia(o.estadoCor)}
+                              >
+                                {o.estadoDisplay}
+                              </span>
                             </td>
                             <td className="px-4 py-3">
                               {podeGerirOcorrencias && (
@@ -578,9 +588,9 @@ export default function AvisosSegurancaPage() {
                 }
                 className="w-full rounded-lg border px-3 py-2"
               >
-                {ESTADOS_OCORRENCIA.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {estadosOcorrencia.map((o) => (
+                  <option key={o.id} value={o.codigo}>
+                    {o.nome}
                   </option>
                 ))}
               </select>

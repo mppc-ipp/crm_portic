@@ -9,6 +9,7 @@ import ProjectSettingsModal, { type ProjetoSettingsData } from "@/components/pro
 import CreateSectionModal from "@/components/projetos/CreateSectionModal";
 import CreateTaskModal, { type NovaTarefaData } from "@/components/projetos/CreateTaskModal";
 import CustomFieldsManager from "@/components/projetos/CustomFieldsManager";
+import ProjectFilesManager from "@/components/projetos/ProjectFilesManager";
 import EmptySectionsState from "@/components/projetos/EmptySectionsState";
 import ProjectThemeWrapper from "@/components/projetos/ProjectThemeWrapper";
 import { KANBAN_SECOES, T, VISTAS } from "@/components/projetos/constants";
@@ -423,6 +424,7 @@ export default function ProjetosPage() {
                   onAdd={addCampo}
                   onDelete={deleteCampo}
                 />
+                <ProjectFilesManager key={ativo.id} projetoId={ativo.id} />
               </div>
             </header>
 

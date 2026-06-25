@@ -12,6 +12,7 @@ type ProximoEvento = {
   tipo: string;
   data_inicio: string;
   data_fim: string;
+  em_curso: boolean;
 };
 
 export default function DashboardPage() {
@@ -40,8 +41,13 @@ export default function DashboardPage() {
           </div>
           <ul className="space-y-2">
             {proximosEventos.slice(0, 5).map((e) => (
-              <li key={e.id} className="text-sm text-slate-700">
+              <li key={e.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
                 <span className="font-medium">{e.titulo}</span>
+                {e.em_curso && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    Em curso
+                  </span>
+                )}
                 <span className="text-slate-500"> — {formatarDataHora(e.data_inicio)}</span>
               </li>
             ))}

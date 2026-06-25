@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 
 export type NivelAviso = "INFO" | "ALERTA" | "CRITICO";
-export type EstadoOcorrencia = "ABERTA" | "EM_TRATAMENTO" | "FECHADA";
+/** Código do estado de ocorrência (configurável na Administração). */
+export type EstadoOcorrencia = string;
 
 export type AvisoSeguranca = {
   id: number;
@@ -26,12 +27,22 @@ export type OcorrenciaSeguranca = {
   local: string;
   estado: EstadoOcorrencia;
   estadoDisplay: string;
+  estadoCor: string | null;
   observacoesResolucao: string;
   registadoPorNome?: string | null;
   dia: string;
 };
 
 export type TipoOcorrencia = {
+  id: number;
+  codigo: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+  ativo: boolean;
+};
+
+export type EstadoOcorrenciaConfig = {
   id: number;
   codigo: string;
   nome: string;
@@ -48,6 +59,7 @@ export type EventoSegurancaAgenda = {
   dataInicio: string;
   dataFim: string;
   descricao: string;
+  emCurso: boolean;
 };
 
 export type AgendaSeguranca = Record<string, EventoSegurancaAgenda[]>;
@@ -58,7 +70,8 @@ export const NIVEIS_AVISO: Array<{ value: NivelAviso; label: string; cor: string
   { value: "CRITICO", label: "Crítico", cor: "bg-red-100 text-red-800" },
 ];
 
-export const ESTADOS_OCORRENCIA: Array<{ value: EstadoOcorrencia; label: string }> = [
+/** Fallback usado apenas quando a lista configurável ainda não carregou. */
+export const ESTADOS_OCORRENCIA: Array<{ value: string; label: string }> = [
   { value: "ABERTA", label: "Aberta" },
   { value: "EM_TRATAMENTO", label: "Em tratamento" },
   { value: "FECHADA", label: "Fechada" },

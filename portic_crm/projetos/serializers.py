@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from portic_crm.projetos.models import (
+    AnexoObjetivo,
     AtividadeProjeto,
     CampoPersonalizado,
     ComentarioObjetivo,
@@ -73,6 +74,51 @@ class ValorCampoSerializer(serializers.ModelSerializer):
         ]
 
 
+class AnexoObjetivoSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    carregado_por_nome = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AnexoObjetivo
+        fields = [
+            "id",
+            "nome_original",
+            "tamanho",
+            "tipo_mime",
+            "url",
+            "carregado_por_nome",
+            "created_at",
+        ]
+
+    def get_url(self, obj):
+        if not obj.ficheiro:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.ficheiro.url)
+        return obj.ficheiro.url
+
+    def get_carregado_por_nome(self, obj):
+        if not obj.carregado_por:
+            return None
+        return obj.carregado_por.get_full_name() or obj.carregado_por.username
+
+
+class AnexoProjetoSerializer(AnexoObjetivoSerializer):
+    objetivo_id = serializers.IntegerField(source="objetivo.id", read_only=True)
+    objetivo_titulo = serializers.CharField(source="objetivo.titulo", read_only=True)
+    secao_id = serializers.IntegerField(source="objetivo.secao_id", read_only=True)
+    secao_nome = serializers.CharField(source="objetivo.secao.nome", read_only=True)
+
+    class Meta(AnexoObjetivoSerializer.Meta):
+        fields = AnexoObjetivoSerializer.Meta.fields + [
+            "objetivo_id",
+            "objetivo_titulo",
+            "secao_id",
+            "secao_nome",
+        ]
+
+
 class ObjetivoSerializer(serializers.ModelSerializer):
     responsavel_nome = serializers.SerializerMethodField()
     empresa_nome = serializers.SerializerMethodField()
@@ -81,6 +127,7 @@ class ObjetivoSerializer(serializers.ModelSerializer):
     dependencias_entrada = DependenciaSerializer(many=True, read_only=True)
     dependencias_saida = DependenciaSerializer(many=True, read_only=True)
     valores_campos = ValorCampoSerializer(many=True, read_only=True)
+    anexos = AnexoObjetivoSerializer(many=True, read_only=True)
     subtarefas_total = serializers.SerializerMethodField()
     subtarefas_concluidas = serializers.SerializerMethodField()
 
@@ -120,6 +167,7 @@ class ObjetivoSerializer(serializers.ModelSerializer):
             "dependencias_entrada",
             "dependencias_saida",
             "valores_campos",
+            "anexos",
         ]
 
 
@@ -131,6 +179,7 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
     subtarefas_total = serializers.SerializerMethodField()
     subtarefas_concluidas = serializers.SerializerMethodField()
     comentarios_total = serializers.SerializerMethodField()
+    anexos_total = serializers.SerializerMethodField()
     dependencias_entrada_titulos = serializers.SerializerMethodField()
     dependencias_saida_titulos = serializers.SerializerMethodField()
 
@@ -148,6 +197,9 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
 
     def get_comentarios_total(self, obj):
         return getattr(obj, "_comentarios_total", obj.comentarios.count())
+
+    def get_anexos_total(self, obj):
+        return getattr(obj, "_anexos_total", obj.anexos.count())
 
     def _titulos_dependencias_entrada(self, obj):
         cache = getattr(obj, "_prefetched_objects_cache", {})
@@ -189,6 +241,7 @@ class ObjetivoListSerializer(serializers.ModelSerializer):
             "subtarefas_total",
             "subtarefas_concluidas",
             "comentarios_total",
+            "anexos_total",
             "dependencias_entrada_titulos",
             "dependencias_saida_titulos",
         ]

@@ -23,6 +23,7 @@ class AcaoAuditoria:
     # Administração — sistema
     SISTEMA_CONFIG = "SISTEMA_CONFIG"
     BACKUP_REGISTADO = "BACKUP_REGISTADO"
+    FICHEIROS_LIMPOS = "FICHEIROS_LIMPOS"
 
     # Configuração CRM — empresas
     TIPO_INTERACAO_CRIADO = "TIPO_INTER_CRIADO"
@@ -124,6 +125,9 @@ class AcaoAuditoria:
     SEG_TIPO_OCOR_CRIADO = "SEG_TIPO_OCOR_CRIADO"
     SEG_TIPO_OCOR_EDITADO = "SEG_TIPO_OCOR_EDITADO"
     SEG_TIPO_OCOR_REMOVIDO = "SEG_TIPO_OCOR_REMOVIDO"
+    SEG_ESTADO_OCOR_CRIADO = "SEG_EST_OCOR_CRIADO"
+    SEG_ESTADO_OCOR_EDITADO = "SEG_EST_OCOR_EDITADO"
+    SEG_ESTADO_OCOR_REMOVIDO = "SEG_EST_OCOR_REMOVIDO"
 
     # Espaços
     ESPACO_RESERVA_CRIADA = "ESP_RES_CRIADA"
@@ -150,6 +154,7 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.GRUPO_PERMISSOES: "Permissões de grupo alteradas",
     AcaoAuditoria.SISTEMA_CONFIG: "Configuração do sistema alterada",
     AcaoAuditoria.BACKUP_REGISTADO: "Backup registado",
+    AcaoAuditoria.FICHEIROS_LIMPOS: "Ficheiros removidos (gestão de armazenamento)",
     AcaoAuditoria.TIPO_INTERACAO_CRIADO: "Tipo de interação criado",
     AcaoAuditoria.TIPO_INTERACAO_EDITADO: "Tipo de interação editado",
     AcaoAuditoria.TIPO_INTERACAO_REMOVIDO: "Tipo de interação removido/desactivado",
@@ -230,6 +235,9 @@ ROTULOS_AUDITORIA: dict[str, str] = {
     AcaoAuditoria.SEG_TIPO_OCOR_CRIADO: "Tipo de ocorrência criado",
     AcaoAuditoria.SEG_TIPO_OCOR_EDITADO: "Tipo de ocorrência editado",
     AcaoAuditoria.SEG_TIPO_OCOR_REMOVIDO: "Tipo de ocorrência removido",
+    AcaoAuditoria.SEG_ESTADO_OCOR_CRIADO: "Estado de ocorrência criado",
+    AcaoAuditoria.SEG_ESTADO_OCOR_EDITADO: "Estado de ocorrência editado",
+    AcaoAuditoria.SEG_ESTADO_OCOR_REMOVIDO: "Estado de ocorrência removido/desactivado",
     AcaoAuditoria.ESPACO_RESERVA_CRIADA: "Reserva criada",
     AcaoAuditoria.ESPACO_RESERVA_APROVADA: "Reserva aprovada",
     AcaoAuditoria.ESPACO_RESERVA_REJEITADA: "Reserva rejeitada",

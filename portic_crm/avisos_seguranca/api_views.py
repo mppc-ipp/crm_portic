@@ -9,6 +9,7 @@ from portic_crm.avisos_seguranca.models import (
     AvisoSeguranca,
     EventoSeguranca,
     OcorrenciaSeguranca,
+    StatusOcorrencia,
     TipoEventoSeguranca,
     TipoOcorrencia,
 )
@@ -16,6 +17,7 @@ from portic_crm.avisos_seguranca.serializers import (
     AvisoSegurancaSerializer,
     EventoSegurancaSerializer,
     OcorrenciaSegurancaSerializer,
+    StatusOcorrenciaSerializer,
     TipoEventoSegurancaSerializer,
     TipoOcorrenciaSerializer,
 )
@@ -200,7 +202,7 @@ class OcorrenciaSegurancaViewSet(viewsets.ModelViewSet):
                         "titulo": o.titulo,
                         "tipo": o.tipo.nome if o.tipo else "",
                         "local": o.local,
-                        "estado": o.get_estado_display(),
+                        "estado": StatusOcorrencia.nome_por_codigo(o.estado) or o.estado,
                         "descricao": o.descricao,
                         "registado_por": (
                             o.registado_por.get_full_name() or o.registado_por.email
@@ -319,6 +321,110 @@ class TipoOcorrenciaViewSet(viewsets.ModelViewSet):
             actor=request.user,
             alvo=tipo,
         )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StatusOcorrenciaViewSet(viewsets.ModelViewSet):
+    serializer_class = StatusOcorrenciaSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        if not (_pode_ver(user) or _pode_gerir_ocorrencias(user) or _pode_configurar_tipos(user)):
+            return StatusOcorrencia.objects.none()
+        qs = StatusOcorrencia.objects.all()
+        if not _pode_configurar_tipos(user):
+            qs = qs.filter(ativo=True)
+        elif self.request.query_params.get("ativos") == "1":
+            qs = qs.filter(ativo=True)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        if not _pode_configurar_tipos(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        nome = (request.data.get("nome") or "").strip()
+        if not nome:
+            return Response({"error": "Nome obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+        cor = (request.data.get("cor") or "#6B7280").strip()
+        ordem = request.data.get("ordem", 0)
+        try:
+            ordem = int(ordem)
+        except (TypeError, ValueError):
+            ordem = 0
+        estado = StatusOcorrencia.objects.create(
+            codigo=StatusOcorrencia.gerar_codigo(nome),
+            nome=nome,
+            cor=cor,
+            ordem=ordem,
+            ativo=True,
+        )
+        registar_auditoria(
+            AcaoAuditoria.SEG_ESTADO_OCOR_CRIADO,
+            f"Criou estado de ocorrência «{estado.nome}»",
+            actor=request.user,
+            alvo=estado,
+        )
+        return Response(StatusOcorrenciaSerializer(estado).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not _pode_configurar_tipos(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        instance = self.get_object()
+        nome = request.data.get("nome")
+        if nome is not None:
+            nome = nome.strip()
+            if not nome:
+                return Response({"error": "Nome obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+            instance.nome = nome
+        if "cor" in request.data:
+            instance.cor = (request.data["cor"] or "#6B7280").strip()
+        if "ordem" in request.data:
+            try:
+                instance.ordem = int(request.data["ordem"])
+            except (TypeError, ValueError):
+                pass
+        if "ativo" in request.data:
+            instance.ativo = bool(request.data["ativo"])
+        instance.save()
+        registar_auditoria(
+            AcaoAuditoria.SEG_ESTADO_OCOR_EDITADO,
+            f"Editou estado de ocorrência «{instance.nome}» (ativo={instance.ativo})",
+            actor=request.user,
+            alvo=instance,
+        )
+        return Response(StatusOcorrenciaSerializer(instance).data)
+
+    def update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not _pode_configurar_tipos(request.user):
+            return Response({"error": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+        instance = self.get_object()
+        em_uso = OcorrenciaSeguranca.objects.filter(estado=instance.codigo).exists()
+        if em_uso:
+            instance.ativo = False
+            instance.save(update_fields=["ativo", "updated_at"])
+            registar_auditoria(
+                AcaoAuditoria.SEG_ESTADO_OCOR_REMOVIDO,
+                f"Desactivou estado de ocorrência «{instance.nome}» (em uso)",
+                actor=request.user,
+                alvo=instance,
+            )
+            return Response(
+                {"detail": "Estado desativado porque já está em uso."},
+                status=status.HTTP_200_OK,
+            )
+        nome = instance.nome
+        registar_auditoria(
+            AcaoAuditoria.SEG_ESTADO_OCOR_REMOVIDO,
+            f"Removeu estado de ocorrência «{nome}»",
+            actor=request.user,
+            alvo=instance,
+        )
+        instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

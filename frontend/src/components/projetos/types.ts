@@ -39,6 +39,23 @@ export type ValorCampo = {
   valor_data: string | null;
 };
 
+export type Anexo = {
+  id: number;
+  nome_original: string;
+  tamanho: number;
+  tipo_mime: string;
+  url: string | null;
+  carregado_por_nome: string | null;
+  created_at: string;
+};
+
+export type AnexoProjeto = Anexo & {
+  objetivo_id: number;
+  objetivo_titulo: string;
+  secao_id: number;
+  secao_nome: string;
+};
+
 export type Objetivo = {
   id: number;
   secao_id: number;
@@ -57,6 +74,7 @@ export type Objetivo = {
   subtarefas_total?: number;
   subtarefas_concluidas?: number;
   comentarios_total?: number;
+  anexos_total?: number;
   dependencias_entrada_titulos?: string[];
   dependencias_saida_titulos?: string[];
   subtarefas?: Subtarefa[];
@@ -64,6 +82,7 @@ export type Objetivo = {
   dependencias_entrada?: Dependencia[];
   dependencias_saida?: Dependencia[];
   valores_campos?: ValorCampo[];
+  anexos?: Anexo[];
 };
 
 export type Secao = {

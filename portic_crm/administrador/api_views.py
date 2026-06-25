@@ -611,3 +611,92 @@ class AdminAuditoriaAPIView(AdminPermissionMixin, APIView):
                 "items": [self._serialize_item(h) for h in items],
             }
         )
+
+
+def _serialize_ficheiros() -> dict:
+    from portic_crm.core import files_inventory
+
+    cfg = ConfiguracaoSistema.get_solo()
+    inventario = files_inventory.construir_inventario()
+    orfaos = files_inventory.listar_orfaos()
+    return {
+        "resumo": files_inventory.totais_por_modulo(),
+        "ficheiros": inventario + orfaos,
+        "limpeza": {
+            "dias": cfg.limpeza_ficheiros_dias,
+            "automatica": cfg.limpeza_ficheiros_automatica,
+            "ultima": (
+                cfg.limpeza_ficheiros_ultima.isoformat()
+                if cfg.limpeza_ficheiros_ultima
+                else None
+            ),
+        },
+    }
+
+
+class AdminFicheirosAPIView(AdminPermissionMixin, APIView):
+    """Inventário e gestão dos ficheiros em disco (apenas administrador geral)."""
+
+    def get(self, request):
+        denied = self._check_admin_geral(request)
+        if denied:
+            return denied
+        return Response(_serialize_ficheiros())
+
+    def patch(self, request):
+        denied = self._check_admin_geral(request)
+        if denied:
+            return denied
+        cfg = ConfiguracaoSistema.get_solo()
+        data = request.data
+        if "dias" in data:
+            try:
+                cfg.limpeza_ficheiros_dias = max(0, int(data["dias"]))
+            except (TypeError, ValueError):
+                return Response(
+                    {"error": "Valor de dias inválido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if "automatica" in data:
+            cfg.limpeza_ficheiros_automatica = bool(data["automatica"])
+        cfg.save()
+        registar_auditoria(
+            AcaoAuditoria.SISTEMA_CONFIG,
+            (
+                "Actualizou política de limpeza de ficheiros "
+                f"(dias={cfg.limpeza_ficheiros_dias}, "
+                f"automática={cfg.limpeza_ficheiros_automatica})"
+            ),
+            actor=request.user,
+            alvo=cfg,
+        )
+        return Response(_serialize_ficheiros())
+
+    def post(self, request):
+        denied = self._check_admin_geral(request)
+        if denied:
+            return denied
+        from portic_crm.core import files_inventory
+
+        data = request.data
+        if data.get("todos_orfaos"):
+            caminhos = [o["caminho_disco"] for o in files_inventory.listar_orfaos()]
+        else:
+            caminhos = data.get("paths") or []
+        if not isinstance(caminhos, list) or not caminhos:
+            return Response(
+                {"error": "Nenhum ficheiro indicado para remoção."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = files_inventory.apagar_caminhos([str(c) for c in caminhos])
+        megabytes = resultado["bytes_libertados"] / (1024 * 1024)
+        registar_auditoria(
+            AcaoAuditoria.FICHEIROS_LIMPOS,
+            (
+                f"Removeu {resultado['total_apagados']} ficheiro(s) "
+                f"({megabytes:.1f} MB libertados)"
+            ),
+            actor=request.user,
+        )
+        resultado["estado"] = _serialize_ficheiros()
+        return Response(resultado)

@@ -43,7 +43,7 @@ class ViaturaSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "foto_url", "estado_display", "created_at", "updated_at"]
+        read_only_fields = ["id", "foto_url", "estado_display", "ativo", "created_at", "updated_at"]
 
     def get_foto_url(self, obj):
         if not obj.foto:

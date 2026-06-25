@@ -104,6 +104,14 @@ export function formatarData(data: string | null): string {
   });
 }
 
+export function formatarTamanho(bytes: number): string {
+  if (!bytes) return "0 B";
+  const unidades = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const valor = bytes / Math.pow(1024, i);
+  return `${valor.toFixed(i === 0 ? 0 : 1)} ${unidades[i]}`;
+}
+
 export function dataVencida(data: string | null): boolean {
   if (!data) return false;
   const hoje = new Date();

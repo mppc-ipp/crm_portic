@@ -26,4 +26,8 @@ app.conf.beat_schedule = {
         "task": "portic_crm.marketing.tasks.renovar_tokens_tiktok",
         "schedule": crontab(hour=5, minute=0),
     },
+    "core-limpar-ficheiros-orfaos": {
+        "task": "portic_crm.core.tasks.limpar_ficheiros_orfaos",
+        "schedule": crontab(hour=2, minute=0),
+    },
 }

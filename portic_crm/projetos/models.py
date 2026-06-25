@@ -180,6 +180,33 @@ class ComentarioObjetivo(TimeStampedModel):
         return self.texto[:50]
 
 
+class AnexoObjetivo(TimeStampedModel):
+    objetivo = models.ForeignKey(
+        Objetivo,
+        on_delete=models.CASCADE,
+        related_name="anexos",
+    )
+    ficheiro = models.FileField(upload_to="projetos/objetivos/%Y/%m/")
+    nome_original = models.CharField(max_length=255)
+    tamanho = models.PositiveIntegerField()
+    tipo_mime = models.CharField(max_length=100, blank=True)
+    carregado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="anexos_objetivo",
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "anexo de tarefa"
+        verbose_name_plural = "anexos de tarefa"
+
+    def __str__(self):
+        return self.nome_original
+
+
 class TipoCampoPersonalizado(models.TextChoices):
     TEXTO = "TEXTO", "Texto"
     NUMERO = "NUMERO", "Número"

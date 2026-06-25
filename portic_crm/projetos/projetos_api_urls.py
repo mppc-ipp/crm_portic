@@ -1,6 +1,8 @@
 from django.urls import path
 
 from portic_crm.projetos.extra_api_views import (
+    AnexoObjetivoDetailAPIView,
+    AnexoObjetivoListCreateAPIView,
     AtividadeProjetoAPIView,
     CampoPersonalizadoDetailAPIView,
     CampoPersonalizadoListCreateAPIView,
@@ -8,6 +10,7 @@ from portic_crm.projetos.extra_api_views import (
     DependenciaDetailAPIView,
     DependenciaListCreateAPIView,
     ObjetivoDetailAPIView,
+    ProjetoAnexosAPIView,
     ProjetoExportCSVAPIView,
     SubtarefaDetailAPIView,
     SubtarefaListCreateAPIView,
@@ -27,6 +30,9 @@ urlpatterns = [
     path("projetos/<int:projeto_id>/campos", CampoPersonalizadoListCreateAPIView.as_view()),
     path("projetos/campos/<int:pk>", CampoPersonalizadoDetailAPIView.as_view()),
     path("projetos/objetivos/<int:objetivo_id>/valores-campos", ValorCampoAPIView.as_view()),
+    path("projetos/objetivos/<int:objetivo_id>/anexos", AnexoObjetivoListCreateAPIView.as_view()),
+    path("projetos/anexos/<int:pk>", AnexoObjetivoDetailAPIView.as_view()),
+    path("projetos/<int:projeto_id>/anexos", ProjetoAnexosAPIView.as_view()),
     path("projetos/<int:projeto_id>/vistas", VistaGuardadaListCreateAPIView.as_view()),
     path("projetos/vistas/<int:pk>", VistaGuardadaDetailAPIView.as_view()),
     path("projetos/<int:projeto_id>/atividade", AtividadeProjetoAPIView.as_view()),

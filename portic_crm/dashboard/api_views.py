@@ -103,6 +103,7 @@ class DashboardAPIView(APIView):
                 ).count(),
             }
 
+        agora = timezone.now()
         payload["proximos_eventos"] = [
             {
                 "id": e.pk,
@@ -110,6 +111,7 @@ class DashboardAPIView(APIView):
                 "tipo": e.tipo.nome,
                 "data_inicio": e.data_inicio.isoformat(),
                 "data_fim": e.data_fim.isoformat(),
+                "em_curso": e.data_inicio <= agora,
             }
             for e in Evento.proximos_eventos(user)[:10]
         ]

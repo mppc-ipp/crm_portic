@@ -6,12 +6,18 @@ from portic_crm.dashboard.models import Evento
 
 
 def proximos_eventos_por_dia(user=None):
-    """Eventos futuros ou em curso do dashboard, agrupados por dia (YYYY-MM-DD)."""
+    """Eventos futuros ou em curso do dashboard, agrupados por dia (YYYY-MM-DD).
+
+    Eventos de vários dias que já começaram mas ainda não terminaram (em curso)
+    são agrupados sob o dia de hoje, e não sob o dia de início já passado.
+    """
     eventos = Evento.proximos_eventos(user)
+    hoje = timezone.localdate()
     por_dia: dict[str, list] = defaultdict(list)
     for evento in eventos:
-        dia = timezone.localtime(evento.data_inicio).date().isoformat()
-        por_dia[dia].append(evento)
+        dia_inicio = timezone.localtime(evento.data_inicio).date()
+        dia = max(dia_inicio, hoje)
+        por_dia[dia.isoformat()].append(evento)
     return dict(sorted(por_dia.items()))
 
 
@@ -25,6 +31,7 @@ def serializar_evento_agenda(evento, request=None):
         "dataInicio": evento.data_inicio.isoformat(),
         "dataFim": evento.data_fim.isoformat(),
         "descricao": evento.descricao,
+        "emCurso": evento.data_inicio <= timezone.now(),
     }
 
 

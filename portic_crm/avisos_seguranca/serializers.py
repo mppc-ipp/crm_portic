@@ -5,6 +5,7 @@ from portic_crm.avisos_seguranca.models import (
     AvisoSeguranca,
     EventoSeguranca,
     OcorrenciaSeguranca,
+    StatusOcorrencia,
     TipoEventoSeguranca,
     TipoOcorrencia,
 )
@@ -56,6 +57,19 @@ class TipoOcorrenciaSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class StatusOcorrenciaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StatusOcorrencia
+        fields = ["id", "codigo", "nome", "cor", "ordem", "ativo", "created_at"]
+        read_only_fields = ["id", "codigo", "created_at"]
+
+    def validate_nome(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("O nome é obrigatório.")
+        return value
+
+
 class AvisoSegurancaSerializer(serializers.ModelSerializer):
     nivel_display = serializers.CharField(source="get_nivel_display", read_only=True)
     criado_por_nome = serializers.SerializerMethodField()
@@ -101,7 +115,8 @@ class AvisoSegurancaSerializer(serializers.ModelSerializer):
 
 
 class OcorrenciaSegurancaSerializer(serializers.ModelSerializer):
-    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+    estado_display = serializers.SerializerMethodField()
+    estado_cor = serializers.SerializerMethodField()
     tipo_nome = serializers.CharField(source="tipo.nome", read_only=True)
     tipo_cor = serializers.CharField(source="tipo.cor", read_only=True)
     registado_por_nome = serializers.SerializerMethodField()
@@ -120,6 +135,7 @@ class OcorrenciaSegurancaSerializer(serializers.ModelSerializer):
             "local",
             "estado",
             "estado_display",
+            "estado_cor",
             "observacoes_resolucao",
             "registado_por",
             "registado_por_nome",
@@ -131,6 +147,8 @@ class OcorrenciaSegurancaSerializer(serializers.ModelSerializer):
             "id",
             "tipo_nome",
             "tipo_cor",
+            "estado_display",
+            "estado_cor",
             "registado_por",
             "registado_por_nome",
             "dia",
@@ -142,6 +160,20 @@ class OcorrenciaSegurancaSerializer(serializers.ModelSerializer):
         if value and not value.ativo:
             raise serializers.ValidationError("O tipo de ocorrência seleccionado está inactivo.")
         return value
+
+    def validate_estado(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("O estado é obrigatório.")
+        if not StatusOcorrencia.objects.filter(codigo=value, ativo=True).exists():
+            raise serializers.ValidationError("Estado inválido ou inativo.")
+        return value
+
+    def get_estado_display(self, obj):
+        return StatusOcorrencia.nome_por_codigo(obj.estado) or obj.estado
+
+    def get_estado_cor(self, obj):
+        return StatusOcorrencia.cor_por_codigo(obj.estado)
 
     def get_registado_por_nome(self, obj):
         if obj.registado_por:
@@ -164,6 +196,7 @@ class OcorrenciaSegurancaSerializer(serializers.ModelSerializer):
             "local": data.get("local") or "",
             "estado": data["estado"],
             "estadoDisplay": data.get("estado_display"),
+            "estadoCor": data.get("estado_cor"),
             "observacoesResolucao": data.get("observacoes_resolucao") or "",
             "registadoPorNome": data.get("registado_por_nome"),
             "dia": data.get("dia"),

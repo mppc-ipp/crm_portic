@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from portic_crm.administrador.api_views import (
     AdminAuditoriaAPIView,
+    AdminFicheirosAPIView,
     AdminGrupoDetailAPIView,
     AdminGruposListAPIView,
     AdminPermissoesCatalogAPIView,
@@ -124,6 +125,7 @@ urlpatterns = [
     path("admin/permissoes", AdminPermissoesCatalogAPIView.as_view()),
     path("admin/auditoria", AdminAuditoriaAPIView.as_view()),
     path("admin/sistema", AdminSistemaAPIView.as_view()),
+    path("admin/ficheiros", AdminFicheirosAPIView.as_view()),
     path("auth/refresh", TokenRefreshView.as_view()),
     path("", include(router.urls)),
-] + projetos_extra_urls + espacos_urls + marketing_urls + teletrabalho_urls + viaturas_urls + avisos_seguranca_urls
+] + projetos_extra_urls + viaturas_urls + espacos_urls + marketing_urls + teletrabalho_urls + avisos_seguranca_urls

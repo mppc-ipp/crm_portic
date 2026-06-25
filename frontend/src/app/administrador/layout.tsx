@@ -24,6 +24,7 @@ export default function AdministradorLayout({ children }: { children: ReactNode 
         const techOnly =
           pathname.startsWith("/administrador/auditoria") ||
           pathname.startsWith("/administrador/modulos") ||
+          pathname.startsWith("/administrador/ficheiros") ||
           pathname.startsWith("/administrador/sistema");
         if (techOnly && !me.admin_geral) {
           router.replace("/administrador/utilizadores");

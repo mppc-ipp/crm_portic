@@ -47,6 +47,12 @@ class ConfiguracaoSistema(models.Model):
         blank=True,
         help_text="Vazio = usar variável de ambiente MARKETING_DRY_RUN.",
     )
+    limpeza_ficheiros_dias = models.PositiveIntegerField(
+        default=0,
+        help_text="Apagar ficheiros órfãos com mais de N dias. 0 = desativado.",
+    )
+    limpeza_ficheiros_automatica = models.BooleanField(default=False)
+    limpeza_ficheiros_ultima = models.DateTimeField(null=True, blank=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:

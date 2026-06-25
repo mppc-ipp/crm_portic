@@ -15,6 +15,7 @@ const sistemaItems = [
 
 const techItems = [
   { href: "/administrador/sistema", label: "Sistema e segurança" },
+  { href: "/administrador/ficheiros", label: "Gestão de ficheiros" },
   { href: "/administrador/auditoria", label: "Auditoria" },
   { href: "/administrador/modulos", label: "Módulos" },
 ];

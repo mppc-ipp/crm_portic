@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Avatar from "./Avatar";
 import { ESTADOS_OBJ } from "./constants";
 import EmpresaPicker from "./EmpresaPicker";
 import type { Atribuivel, CampoPersonalizado, Objetivo } from "./types";
-import { atribuicaoKeyFromObjetivo, formatarData, parseAtribuicaoKey } from "./utils";
+import { atribuicaoKeyFromObjetivo, formatarData, formatarTamanho, parseAtribuicaoKey } from "./utils";
 
 type Props = {
   tarefaId: number;
@@ -43,6 +43,9 @@ export default function TaskDetailPanel({
   const [novoComentario, setNovoComentario] = useState("");
   const [novaDep, setNovaDep] = useState<number | "">("");
   const [aGuardar, setAGuardar] = useState(false);
+  const [aEnviarAnexo, setAEnviarAnexo] = useState(false);
+  const [erroAnexo, setErroAnexo] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     const data = await apiFetch<Objetivo>(`/api/projetos/objetivos/${tarefaId}/detalhe`);
@@ -126,6 +129,32 @@ export default function TaskDetailPanel({
 
   async function removeDep(id: number) {
     await apiFetch(`/api/projetos/dependencias/${id}`, { method: "DELETE" });
+    await carregar();
+    await onRefresh();
+  }
+
+  async function uploadAnexo(file: File) {
+    setErroAnexo("");
+    setAEnviarAnexo(true);
+    try {
+      const fd = new FormData();
+      fd.append("ficheiro", file);
+      await apiFetch(`/api/projetos/objetivos/${tarefaId}/anexos`, {
+        method: "POST",
+        body: fd,
+      });
+      await carregar();
+      await onRefresh();
+    } catch (e) {
+      setErroAnexo(e instanceof Error ? e.message : "Falha ao carregar o ficheiro.");
+    } finally {
+      setAEnviarAnexo(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeAnexo(id: number) {
+    await apiFetch(`/api/projetos/anexos/${id}`, { method: "DELETE" });
     await carregar();
     await onRefresh();
   }
@@ -356,6 +385,71 @@ export default function TaskDetailPanel({
               </div>
             </div>
           )}
+
+          {/* Anexos */}
+          <div className="mt-6">
+            <h4 className="mb-2 text-sm font-semibold text-slate-700">
+              Anexos
+              {tarefa.anexos?.length ? (
+                <span className="ml-2 text-xs font-normal text-slate-400">{tarefa.anexos.length}</span>
+              ) : null}
+            </h4>
+            <div className="space-y-1">
+              {tarefa.anexos?.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <a
+                    href={a.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={a.nome_original}
+                    className="min-w-0 flex-1 truncate text-slate-700 hover:text-proj hover:underline"
+                    title={a.nome_original}
+                  >
+                    {a.nome_original}
+                  </a>
+                  <span className="shrink-0 text-xs text-slate-400">{formatarTamanho(a.tamanho)}</span>
+                  <a
+                    href={a.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={a.nome_original}
+                    className="shrink-0 text-xs text-slate-500 hover:text-proj"
+                    title="Descarregar"
+                  >
+                    ↓
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void removeAnexo(a.id)}
+                    className="shrink-0 text-xs text-rose-500 hover:text-rose-700"
+                    title="Eliminar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )) ?? null}
+              {!tarefa.anexos?.length && (
+                <p className="text-xs text-slate-400">Nenhum anexo.</p>
+              )}
+            </div>
+            <div className="mt-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadAnexo(file);
+                }}
+                disabled={aEnviarAnexo}
+                className="block w-full text-xs text-slate-500 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200 disabled:opacity-50"
+              />
+              {aEnviarAnexo && <p className="mt-1 text-xs text-slate-400">A carregar…</p>}
+              {erroAnexo && <p className="mt-1 text-xs text-rose-600">{erroAnexo}</p>}
+            </div>
+          </div>
 
           {/* Descrição */}
           <div className="mt-6">

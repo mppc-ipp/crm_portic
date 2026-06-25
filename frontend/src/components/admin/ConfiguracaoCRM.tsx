@@ -16,6 +16,7 @@ type TipoInteracaoEmpresa = TipoConfig & { cor: string };
 type StatusCandidatura = TipoConfig & { cor: string };
 type TipoEvento = TipoConfig & { cor: string };
 type TipoOcorrencia = TipoConfig & { cor: string };
+type EstadoOcorrencia = TipoConfig & { cor: string };
 type CorEstadoPublicacao = TipoConfig & { cor: string; codigo: string };
 
 export default function ConfiguracaoCRM() {
@@ -25,6 +26,7 @@ export default function ConfiguracaoCRM() {
   const [estadosCandidatura, setEstadosCandidatura] = useState<StatusCandidatura[]>([]);
   const [tiposEvento, setTiposEvento] = useState<TipoEvento[]>([]);
   const [tiposOcorrencia, setTiposOcorrencia] = useState<TipoOcorrencia[]>([]);
+  const [estadosOcorrencia, setEstadosOcorrencia] = useState<EstadoOcorrencia[]>([]);
   const [coresMarketing, setCoresMarketing] = useState<CorEstadoPublicacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [erroTipos, setErroTipos] = useState("");
@@ -33,6 +35,7 @@ export default function ConfiguracaoCRM() {
   const [erroEstados, setErroEstados] = useState("");
   const [erroTiposEvento, setErroTiposEvento] = useState("");
   const [erroTiposOcorrencia, setErroTiposOcorrencia] = useState("");
+  const [erroEstadosOcorrencia, setErroEstadosOcorrencia] = useState("");
   const [erroCoresMarketing, setErroCoresMarketing] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
   const [novoNome, setNovoNome] = useState("");
@@ -45,12 +48,15 @@ export default function ConfiguracaoCRM() {
   const [novaCorTipoEvento, setNovaCorTipoEvento] = useState("#3B82F6");
   const [novoNomeTipoOcorrencia, setNovoNomeTipoOcorrencia] = useState("");
   const [novaCorTipoOcorrencia, setNovaCorTipoOcorrencia] = useState("#EF4444");
+  const [novoNomeEstadoOcorrencia, setNovoNomeEstadoOcorrencia] = useState("");
+  const [novaCorEstadoOcorrencia, setNovaCorEstadoOcorrencia] = useState("#6B7280");
   const [editando, setEditando] = useState<TipoInteracaoEmpresa | null>(null);
   const [editandoParceria, setEditandoParceria] = useState<TipoConfig | null>(null);
   const [editandoHistorico, setEditandoHistorico] = useState<TipoConfig | null>(null);
   const [editandoEstado, setEditandoEstado] = useState<StatusCandidatura | null>(null);
   const [editandoTipoEvento, setEditandoTipoEvento] = useState<TipoEvento | null>(null);
   const [editandoTipoOcorrencia, setEditandoTipoOcorrencia] = useState<TipoOcorrencia | null>(null);
+  const [editandoEstadoOcorrencia, setEditandoEstadoOcorrencia] = useState<EstadoOcorrencia | null>(null);
   const [editandoCorMarketing, setEditandoCorMarketing] = useState<CorEstadoPublicacao | null>(null);
   const [formEditar, setFormEditar] = useState({ nome: "", ordem: 0, ativo: true, cor: "#6B7280" });
   const [formEditarParceria, setFormEditarParceria] = useState({ nome: "", ordem: 0, ativo: true });
@@ -73,6 +79,12 @@ export default function ConfiguracaoCRM() {
     ativo: true,
     cor: "#EF4444",
   });
+  const [formEditarEstadoOcorrencia, setFormEditarEstadoOcorrencia] = useState({
+    nome: "",
+    ordem: 0,
+    ativo: true,
+    cor: "#6B7280",
+  });
   const [formEditarCorMarketing, setFormEditarCorMarketing] = useState({
     nome: "",
     cor: "#3B82F6",
@@ -86,23 +98,27 @@ export default function ConfiguracaoCRM() {
     setErroEstados("");
     setErroTiposEvento("");
     setErroTiposOcorrencia("");
+    setErroEstadosOcorrencia("");
     setErroCoresMarketing("");
     try {
-      const [empresas, parcerias, historico, estados, eventos, ocorrencias, marketingCores] = await Promise.all([
-        apiFetch<TipoInteracaoEmpresa[]>("/api/empresas/tipos-interacao"),
-        apiFetch<TipoConfig[]>("/api/empresas/tipos-parceria"),
-        apiFetch<TipoConfig[]>("/api/startups/tipos-historico"),
-        apiFetch<StatusCandidatura[]>("/api/startups/estados-candidatura"),
-        apiFetch<TipoEvento[]>("/api/eventos/tipos"),
-        apiFetch<TipoOcorrencia[]>("/api/avisos-seguranca/ocorrencias/tipos"),
-        apiFetch<CorEstadoPublicacao[]>("/api/marketing/estados-publicacao"),
-      ]);
+      const [empresas, parcerias, historico, estados, eventos, ocorrencias, estadosOcor, marketingCores] =
+        await Promise.all([
+          apiFetch<TipoInteracaoEmpresa[]>("/api/empresas/tipos-interacao"),
+          apiFetch<TipoConfig[]>("/api/empresas/tipos-parceria"),
+          apiFetch<TipoConfig[]>("/api/startups/tipos-historico"),
+          apiFetch<StatusCandidatura[]>("/api/startups/estados-candidatura"),
+          apiFetch<TipoEvento[]>("/api/eventos/tipos"),
+          apiFetch<TipoOcorrencia[]>("/api/avisos-seguranca/ocorrencias/tipos"),
+          apiFetch<EstadoOcorrencia[]>("/api/avisos-seguranca/ocorrencias/estados"),
+          apiFetch<CorEstadoPublicacao[]>("/api/marketing/estados-publicacao"),
+        ]);
       setTipos(empresas);
       setTiposParceria(parcerias);
       setTiposHistorico(historico);
       setEstadosCandidatura(estados);
       setTiposEvento(eventos);
       setTiposOcorrencia(ocorrencias);
+      setEstadosOcorrencia(estadosOcor);
       setCoresMarketing(marketingCores);
     } catch (e) {
       setErroTipos(e instanceof Error ? e.message : "Erro ao carregar configurações");
@@ -208,6 +224,28 @@ export default function ConfiguracaoCRM() {
       await carregarTipos();
     } catch (err) {
       setErroTiposOcorrencia(err instanceof Error ? err.message : "Erro ao adicionar");
+    } finally {
+      setAGuardar(false);
+    }
+  }
+
+  async function adicionarEstadoOcorrencia(e: FormEvent) {
+    e.preventDefault();
+    if (!novoNomeEstadoOcorrencia.trim()) return;
+    setAGuardar(true);
+    try {
+      await apiFetch("/api/avisos-seguranca/ocorrencias/estados", {
+        method: "POST",
+        body: JSON.stringify({
+          nome: novoNomeEstadoOcorrencia.trim(),
+          cor: novaCorEstadoOcorrencia,
+          ordem: estadosOcorrencia.length + 1,
+        }),
+      });
+      setNovoNomeEstadoOcorrencia("");
+      await carregarTipos();
+    } catch (err) {
+      setErroEstadosOcorrencia(err instanceof Error ? err.message : "Erro ao adicionar");
     } finally {
       setAGuardar(false);
     }
@@ -683,6 +721,117 @@ export default function ConfiguracaoCRM() {
       </section>
 
       <section className="rounded-xl border bg-white p-5">
+        <h3 className="mb-1 font-semibold">Estados de ocorrência (Segurança)</h3>
+        <p className="mb-4 text-sm text-slate-600">
+          Opções do campo Estado ao registar ocorrências no módulo Avisos Segurança. A cor é usada na etiqueta de estado.
+        </p>
+        <form onSubmit={adicionarEstadoOcorrencia} className="mb-4 flex flex-wrap items-end gap-3">
+          <label className="block min-w-[160px] flex-1 text-sm text-slate-600">
+            Novo estado
+            <input
+              value={novoNomeEstadoOcorrencia}
+              onChange={(e) => setNovoNomeEstadoOcorrencia(e.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm text-slate-600">
+            Cor
+            <input
+              type="color"
+              value={novaCorEstadoOcorrencia}
+              onChange={(e) => setNovaCorEstadoOcorrencia(e.target.value)}
+              className="mt-1 block h-10 w-14 rounded border"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={aGuardar || !novoNomeEstadoOcorrencia.trim()}
+            className="rounded-lg bg-portic px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+        </form>
+        {erroEstadosOcorrencia && <p className="mb-3 text-sm text-red-600">{erroEstadosOcorrencia}</p>}
+        {!loading && (
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="p-3 text-left">Nome</th>
+                  <th className="p-3 text-left">Cor</th>
+                  <th className="p-3 text-left">Ordem</th>
+                  <th className="p-3 text-left">Estado</th>
+                  <th className="p-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {estadosOcorrencia.map((t) => (
+                  <tr key={t.id} className="border-t">
+                    <td className="p-3">
+                      <span
+                        className="rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                        style={{ backgroundColor: `${t.cor}22`, color: t.cor, borderColor: `${t.cor}55` }}
+                      >
+                        {t.nome}
+                      </span>
+                    </td>
+                    <td className="p-3 font-mono text-xs">{t.cor}</td>
+                    <td className="p-3">{t.ordem}</td>
+                    <td className="p-3">{t.ativo ? "Ativo" : "Inativo"}</td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditandoEstadoOcorrencia(t);
+                            setFormEditarEstadoOcorrencia({
+                              nome: t.nome,
+                              ordem: t.ordem,
+                              ativo: t.ativo,
+                              cor: t.cor,
+                            });
+                          }}
+                          className="text-xs text-portic hover:underline"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await apiFetch(`/api/avisos-seguranca/ocorrencias/estados/${t.id}`, {
+                              method: "PATCH",
+                              body: JSON.stringify({ ativo: !t.ativo }),
+                            });
+                            await carregarTipos();
+                          }}
+                          className="text-xs text-slate-600 hover:underline"
+                        >
+                          {t.ativo ? "Desativar" : "Ativar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`Excluir "${t.nome}"?`)) return;
+                            await apiFetch(`/api/avisos-seguranca/ocorrencias/estados/${t.id}`, {
+                              method: "DELETE",
+                            });
+                            await carregarTipos();
+                          }}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-xl border bg-white p-5">
         <h3 className="mb-1 font-semibold">Estados de candidatura (Startups)</h3>
         <form onSubmit={adicionarEstado} className="mb-4 flex flex-wrap items-end gap-3">
           <label className="block min-w-[160px] flex-1 text-sm text-slate-600">
@@ -921,6 +1070,46 @@ export default function ConfiguracaoCRM() {
               type="color"
               value={formEditarTipoOcorrencia.cor}
               onChange={(e) => setFormEditarTipoOcorrencia((f) => ({ ...f, cor: e.target.value }))}
+            />
+            <button type="submit" className="rounded-lg bg-portic px-4 py-2 text-sm text-white">
+              Guardar
+            </button>
+          </form>
+        </Modal>
+      )}
+      {editandoEstadoOcorrencia && (
+        <Modal title="Editar estado de ocorrência" onClose={() => setEditandoEstadoOcorrencia(null)}>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!editandoEstadoOcorrencia) return;
+              await apiFetch(`/api/avisos-seguranca/ocorrencias/estados/${editandoEstadoOcorrencia.id}`, {
+                method: "PATCH",
+                body: JSON.stringify(formEditarEstadoOcorrencia),
+              });
+              setEditandoEstadoOcorrencia(null);
+              await carregarTipos();
+            }}
+            className="space-y-4"
+          >
+            <input
+              required
+              value={formEditarEstadoOcorrencia.nome}
+              onChange={(e) => setFormEditarEstadoOcorrencia((f) => ({ ...f, nome: e.target.value }))}
+              className="w-full rounded-lg border px-3 py-2"
+            />
+            <input
+              type="number"
+              value={formEditarEstadoOcorrencia.ordem}
+              onChange={(e) =>
+                setFormEditarEstadoOcorrencia((f) => ({ ...f, ordem: parseInt(e.target.value, 10) || 0 }))
+              }
+              className="w-full rounded-lg border px-3 py-2"
+            />
+            <input
+              type="color"
+              value={formEditarEstadoOcorrencia.cor}
+              onChange={(e) => setFormEditarEstadoOcorrencia((f) => ({ ...f, cor: e.target.value }))}
             />
             <button type="submit" className="rounded-lg bg-portic px-4 py-2 text-sm text-white">
               Guardar
